@@ -5,8 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Task Master Pro V5</title>
+    <title>Task Master Pro V7</title>
 
+    <!-- 約束の自動追加アイコン -->
     <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%236366f1'/><path d='M25 50 l15 15 l35 -35' stroke='white' stroke-width='10' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>" type="image/svg+xml">
     <link rel="apple-touch-icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%236366f1'/><path d='M25 50 l15 15 l35 -35' stroke='white' stroke-width='10' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
 
@@ -76,7 +77,7 @@
 
         function App() {
             // --- Global States ---
-            const [currentView, setCurrentView] = useState('dashboard'); // dashboard, taskDetail, trash, settings, analytics, github
+            const [currentView, setCurrentView] = useState('dashboard');
             const [selectedTaskId, setSelectedTaskId] = useState(null);
             const [activeTagFilter, setActiveTagFilter] = useState(null);
             
@@ -115,7 +116,6 @@
                 let lTasks = safeParse('taskMaster_tasks', []);
                 const todayStr = new Date().toISOString().split('T')[0];
                 
-                // ルーチンの自動復活処理
                 if (localStorage.getItem('taskMaster_lastLogin') !== todayStr) {
                     lTasks = lTasks.map(t => {
                         if (t.type === 'routine' && t.status === 'completed') return { ...t, status: 'active', lastCompletedDate: null };
@@ -162,11 +162,25 @@
                 localStorage.setItem('grandMemos', JSON.stringify(memos));
             }, [tasks, schedules, activityLog, userStats, isDarkMode, themeColor, todos, memos, githubSettings]);
 
+            // --- 新機能: 日付カラー計算ヘルパー ---
+            const getDueDateStyles = (dateStr, isCompleted) => {
+                if (!dateStr || isCompleted) return { borderClass: '', textClass: 'text-slate-500' };
+                const target = new Date(dateStr); const today = new Date();
+                target.setHours(0,0,0,0); today.setHours(0,0,0,0);
+                const diffDays = Math.ceil((target - today) / (1000 * 60 * 60 * 24));
+                
+                if (diffDays < 0) return { borderClass: 'border-l-4 border-l-rose-600 bg-rose-50/50 dark:bg-rose-900/20', textClass: 'text-rose-600 font-bold' }; // 期限切れ
+                if (diffDays === 0) return { borderClass: 'border-l-4 border-l-red-500 bg-red-50/50 dark:bg-red-900/10', textClass: 'text-red-500 font-bold' }; // 今日
+                if (diffDays <= 2) return { borderClass: 'border-l-4 border-l-orange-500 bg-orange-50/50 dark:bg-orange-900/10', textClass: 'text-orange-500 font-bold' }; // 1〜2日後
+                if (diffDays <= 5) return { borderClass: 'border-l-4 border-l-amber-400', textClass: 'text-amber-500 font-bold' }; // 3〜5日後
+                return { borderClass: 'border-l-4 border-l-transparent', textClass: 'text-slate-500' }; // 通常
+            };
+
             // --- Core Functions ---
-            const exportAllData = () => {
+            const exportAllData = (filename, dataObj) => {
                 const a = document.createElement('a'); 
-                a.href = URL.createObjectURL(new Blob([JSON.stringify({ tasks, schedules, activityLog, userStats, memos, todos, githubSettings })], { type: 'application/json' })); 
-                a.download = 'taskmaster_backup.json'; 
+                a.href = URL.createObjectURL(new Blob([JSON.stringify(dataObj, null, 2)], { type: 'application/json' })); 
+                a.download = filename || 'taskmaster_backup.json'; 
                 a.click();
             };
 
@@ -274,6 +288,24 @@
                 setIsGithubLoading(false);
             };
 
+            const uploadTextToGithub = async (targetPath, textContent) => {
+                if (!githubSettings.token) { alert("GitHub連携が未設定です。設定画面から設定してね！"); return; }
+                setIsGithubLoading(true);
+                try {
+                    let sha = null;
+                    const check = await fetch(`https://api.github.com/repos/${githubSettings.owner}/${githubSettings.repo}/contents/${targetPath}`, { headers: { 'Authorization': `token ${githubSettings.token}` } });
+                    if(check.ok) sha = (await check.json()).sha;
+
+                    const res = await fetch(`https://api.github.com/repos/${githubSettings.owner}/${githubSettings.repo}/contents/${targetPath}`, {
+                        method: 'PUT', headers: { 'Authorization': `token ${githubSettings.token}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message: `Save ${targetPath} from TaskMaster`, content: btoa(unescape(encodeURIComponent(textContent))), ...(sha && { sha }) })
+                    });
+                    if(res.ok) { alert(`${targetPath} をクラウドに保存したよ！`); }
+                    else { alert(`${targetPath} の保存に失敗しちゃった...`); }
+                } catch(e) { console.error(e); }
+                setIsGithubLoading(false);
+            };
+
             const deleteGithubFile = async (fileObj) => {
                 if (!githubSettings.token) return;
                 if (!confirm(`「${fileObj.name}」を完全に削除しますか？\n(※フォルダの場合は中身が空である必要があります)`)) return;
@@ -305,7 +337,7 @@
                     a.remove();
                     window.URL.revokeObjectURL(url);
                 } catch(e) {
-                    window.open(fileObj.download_url, '_blank'); // fallback
+                    window.open(fileObj.download_url, '_blank');
                 }
             };
 
@@ -322,7 +354,6 @@
                 setIsGithubLoading(false);
             };
 
-            // --- JSON Import from hub_backup.json ---
             const importJSONData = (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
@@ -341,7 +372,6 @@
                 reader.readAsText(file);
             };
 
-
             // --- UI Components ---
             const Sidebar = () => {
                 const [isTodoExpanded, setIsTodoExpanded] = useState(true);
@@ -352,7 +382,6 @@
 
                 return (
                     <div className="w-full md:w-72 flex-shrink-0 flex flex-col gap-4">
-                        {/* ユーザーレベル＆AIモチベーター */}
                         <div className="bg-primary rounded-xl shadow-md p-4 text-white relative overflow-hidden group">
                             <span className="font-bold flex items-center text-lg mb-2 relative z-10"><i className="fa-solid fa-medal text-yellow-300 mr-2"></i> Lv {userStats.level}</span>
                             <div className="w-full bg-black/20 rounded-full h-2 mb-3 relative z-10"><div className="bg-yellow-400 h-2 rounded-full" style={{ width: `${Math.min(100, (userStats.xp / (userStats.level * 50)) * 100)}%` }}></div></div>
@@ -361,7 +390,6 @@
                             </button>
                         </div>
 
-                        {/* ナビゲーションメニュー */}
                         <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-2 flex flex-col gap-1">
                             <button onClick={() => setCurrentView('dashboard')} className={`text-left px-4 py-2 text-sm font-bold rounded flex items-center transition-colors ${currentView === 'dashboard' ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700'}`}><i className="fa-solid fa-list-check w-5"></i> タスクボード</button>
                             <button onClick={() => setCurrentView('analytics')} className={`text-left px-4 py-2 text-sm font-bold rounded flex items-center transition-colors ${currentView === 'analytics' ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700'}`}><i className="fa-solid fa-chart-line w-5"></i> 分析・ダッシュボード</button>
@@ -370,7 +398,6 @@
                             <button onClick={() => setCurrentView('settings')} className={`text-left px-4 py-2 text-sm font-bold rounded flex items-center transition-colors ${currentView === 'settings' ? 'bg-slate-100 text-slate-700 dark:bg-slate-700' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700'}`}><i className="fa-solid fa-gear w-5"></i> 設定</button>
                         </div>
 
-                        {/* 同期ToDo (折り畳み対応) */}
                         <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-3">
                             <h3 onClick={() => setIsTodoExpanded(!isTodoExpanded)} className="font-bold text-slate-700 dark:text-slate-200 mb-2 text-sm flex items-center justify-between cursor-pointer select-none">
                                 <span><i className="fa-solid fa-check-double text-primary mr-2"></i>同期ToDo</span>
@@ -392,7 +419,6 @@
                             )}
                         </div>
 
-                        {/* 複数タブ同期メモ (折り畳み＆高さ固定対応) */}
                         <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-3 flex flex-col flex-shrink-0">
                             <div className="flex justify-between items-center mb-2 cursor-pointer select-none" onClick={(e) => { if(e.target.tagName !== 'BUTTON' && e.target.tagName !== 'I') setIsMemoExpanded(!isMemoExpanded); }}>
                                 <h3 className="font-bold text-slate-700 dark:text-slate-200 text-sm flex items-center">
@@ -414,7 +440,6 @@
                             {isMemoExpanded && currentMemoId && (
                                 <div className="flex flex-col gap-1">
                                     <LocalInput value={activeMemo.title} onChange={(val) => handleMemoUpdate(currentMemoId, 'title', val)} className="text-xs font-bold bg-transparent border-b focus:ring-0 dark:text-slate-200 dark:border-slate-700 p-1" placeholder="タイトル"/>
-                                    {/* 高さを固定にしてリサイズ禁止 */}
                                     <LocalInput isTextarea value={activeMemo.content} onChange={(val) => handleMemoUpdate(currentMemoId, 'content', val)} className="w-full h-[150px] p-2 text-sm border rounded bg-slate-50 dark:bg-slate-900 resize-none dark:text-slate-200 dark:border-slate-700 focus:ring-1 focus:ring-amber-500" placeholder="内容..."/>
                                 </div>
                             )}
@@ -425,10 +450,19 @@
 
             const TaskList = ({ type, title, icon }) => {
                 const [isExpanded, setIsExpanded] = useState(type !== 'completed');
+                const [sortMode, setSortMode] = useState('manual'); // manual, date
+                
                 let list = tasks.filter(t => t.type === type && t.status === 'active');
                 if (activeTagFilter) list = list.filter(t => t.tags?.includes(activeTagFilter));
-                list.sort((a, b) => (!a.dueDate ? 1 : !b.dueDate ? -1 : new Date(a.dueDate) - new Date(b.dueDate)));
                 if (type === 'completed') list = tasks.filter(t => t.status === 'completed');
+
+                // 新機能: 日付順ソートトグル
+                if (sortMode === 'date') {
+                    list.sort((a, b) => {
+                        if (!a.dueDate) return 1; if (!b.dueDate) return -1;
+                        return new Date(a.dueDate) - new Date(b.dueDate);
+                    });
+                }
 
                 // D&D Handlers
                 const handleDragStart = (e, id) => { e.dataTransfer.setData('taskId', id); e.target.classList.add('opacity-50'); };
@@ -447,16 +481,27 @@
                             <i className={`${icon} mr-2`}></i> {title} <span className="text-sm ml-2 text-slate-400">({list.length})</span>
                             <i className={`fa-solid fa-chevron-${isExpanded ? 'down' : 'right'} ml-2 text-xs text-slate-300 group-hover:text-slate-500`}></i>
                         </h2>
-                        {type !== 'completed' && <button onClick={() => setTasks([...tasks, { id: Date.now().toString(), title: '新規タスク', type, status: 'active', subtasks: [], tags: [], isSecret: false, streak: 0 }])} className="text-xs bg-primary/10 text-primary px-3 py-1 rounded-full"><i className="fa-solid fa-plus mr-1"></i>追加</button>}
+                        {type !== 'completed' && (
+                            <div className="flex gap-2 items-center">
+                                {/* 新機能: ソート切り替えボタン */}
+                                <button onClick={() => setSortMode(sortMode === 'date' ? 'manual' : 'date')} className={`text-xs px-2 py-1 rounded-full border transition-colors ${sortMode === 'date' ? 'bg-primary/10 text-primary border-primary/30' : 'text-slate-400 border-transparent hover:bg-slate-100 dark:hover:bg-slate-800'}`} title={sortMode === 'date' ? '現在: 日付順 (クリックで手動順)' : '現在: 手動順 (クリックで日付順)'}>
+                                    <i className="fa-solid fa-arrow-down-short-wide"></i> 日付
+                                </button>
+                                <button onClick={() => setTasks([...tasks, { id: Date.now().toString(), title: '新規タスク', type, status: 'active', subtasks: [], tags: [], isSecret: false, streak: 0 }])} className="text-xs bg-primary/10 text-primary px-3 py-1 rounded-full hover:bg-primary/20"><i className="fa-solid fa-plus mr-1"></i>追加</button>
+                            </div>
+                        )}
                     </div>
                     {isExpanded && (
                         <div className="space-y-2">
                         {list.map((task) => {
                             const progress = task.subtasks?.length ? Math.round((task.subtasks.filter(s => s.status === 'completed').length / task.subtasks.length) * 100) : 0;
                             const isHidden = task.isSecret && !isUnlocked;
+                            // 新機能: 期限カラーの取得
+                            const styles = getDueDateStyles(task.dueDate, task.status === 'completed');
+
                             return (
                                 <div key={task.id} draggable={type !== 'completed'} onDragStart={(e) => handleDragStart(e, task.id)} onDragEnd={(e) => e.target.classList.remove('opacity-50')} onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, task.id)}
-                                    className="group flex items-center justify-between p-2 rounded-lg border bg-white dark:bg-slate-800 hover:shadow-md cursor-grab active:cursor-grabbing dark:border-slate-700">
+                                    className={`group flex items-center justify-between p-2 rounded-lg border bg-white dark:bg-slate-800 hover:shadow-md cursor-grab active:cursor-grabbing dark:border-slate-700 transition-colors ${styles.borderClass}`}>
                                     <div className="flex items-center gap-3 flex-1 overflow-hidden">
                                         <button onClick={() => toggleTaskStatus(task.id)} className="flex-shrink-0 text-slate-400 hover:text-emerald-500">
                                             {task.status === 'completed' ? <i className="fa-solid fa-circle-check text-emerald-500 text-xl"></i> : <i className="fa-regular fa-circle text-xl"></i>}
@@ -470,9 +515,9 @@
                                                 {!isHidden && task.streak > 0 && <span className="text-[10px] font-bold text-orange-500 bg-orange-100 px-1 rounded flex items-center"><i className="fa-solid fa-fire mr-0.5"></i>{task.streak}</span>}
                                             </div>
                                             {!isHidden && (
-                                                <div className="flex text-[11px] text-slate-500 gap-3 mt-0.5">
-                                                    {task.dueDate && <span><i className="fa-regular fa-calendar mr-1"></i>{task.dueDate}</span>}
-                                                    {progress > 0 && <span>進捗: {progress}%</span>}
+                                                <div className="flex text-[11px] gap-3 mt-0.5">
+                                                    {task.dueDate && <span className={`${styles.textClass}`}><i className="fa-regular fa-calendar mr-1"></i>{task.dueDate}</span>}
+                                                    {progress > 0 && <span className="text-slate-500">進捗: {progress}%</span>}
                                                 </div>
                                             )}
                                         </div>
@@ -493,19 +538,31 @@
 
             const Dashboard = () => {
                 const tags = Array.from(new Set(tasks.flatMap(t => t.tags || [])));
+                const [backupName, setBackupName] = useState('backup.json');
+
+                const handleBackup = () => {
+                    const dataObj = { tasks, schedules, activityLog, userStats, memos, todos, githubSettings };
+                    if (githubSettings.token && githubSettings.owner && githubSettings.repo) {
+                        uploadTextToGithub(backupName, JSON.stringify(dataObj, null, 2));
+                    } else {
+                        exportAllData(backupName, dataObj);
+                    }
+                };
+
                 return (
                     <div className="flex-1 min-w-0">
-                        {/* ヘッダー部分に全データ保存ボタンを追加！ */}
-                        <div className="flex justify-between items-center mb-6">
+                        <div className="flex justify-between items-center mb-6 flex-wrap gap-2">
                             <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">ダッシュボード</h1>
-                            <button onClick={exportAllData} className="px-4 py-2 bg-slate-800 dark:bg-slate-700 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-slate-700 dark:hover:bg-slate-600 transition-colors flex items-center">
-                                <i className="fa-solid fa-download mr-2"></i>全データ保存
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <LocalInput value={backupName} onChange={setBackupName} placeholder="ファイル名.json" className="px-2 py-1.5 border rounded text-sm dark:bg-slate-800 dark:border-slate-600 dark:text-slate-200 w-32 md:w-48" />
+                                <button onClick={handleBackup} disabled={isGithubLoading} className="px-4 py-2 bg-slate-800 dark:bg-slate-700 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-slate-700 dark:hover:bg-slate-600 transition-colors flex items-center disabled:opacity-50 disabled:cursor-not-allowed">
+                                    {isGithubLoading ? <i className="fa-solid fa-spinner fa-spin mr-2"></i> : <i className="fa-brands fa-github mr-2"></i>}保存
+                                </button>
+                            </div>
                         </div>
 
                         {aiMessage && <div className="mb-4 bg-gradient-to-r from-yellow-100 to-orange-100 dark:from-yellow-900/40 border-l-4 border-yellow-400 p-3 rounded text-orange-800 dark:text-orange-200 font-bold animate-bounce"><i className="fa-solid fa-robot mr-2"></i>{aiMessage}</div>}
                         
-                        {/* タグフィルター */}
                         {tags.length > 0 && (
                             <div className="mb-4 flex gap-1 flex-wrap">
                                 <button onClick={() => setActiveTagFilter(null)} className={`text-xs px-2 py-1 rounded-full border ${activeTagFilter === null ? 'bg-primary text-white border-primary' : 'bg-white dark:bg-slate-800 text-slate-500 dark:border-slate-700'}`}>すべて</button>
@@ -521,19 +578,33 @@
                                 <div className="mt-8 opacity-70"><TaskList type="completed" title="完了履歴" icon="fa-solid fa-clock-rotate-left text-slate-400" /></div>
                             </div>
                             <div>
-                                {/* スケジュール */}
                                 <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 sticky top-4">
-                                    <h2 className="text-base font-bold mb-3 flex items-center"><i className="fa-regular fa-calendar text-blue-500 mr-2"></i>スケジュール</h2>
+                                    <div className="flex items-center justify-between mb-3">
+                                        <h2 className="text-base font-bold flex items-center"><i className="fa-regular fa-calendar text-blue-500 mr-2"></i>スケジュール</h2>
+                                        {/* 新機能: スケジュール日付順ソートボタン */}
+                                        <button onClick={() => {
+                                            const sorted = [...schedules].sort((a, b) => {
+                                                if(!a.date) return 1; if(!b.date) return -1;
+                                                return new Date(a.date) - new Date(b.date);
+                                            });
+                                            setSchedules(sorted);
+                                        }} className="text-xs text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 px-2 py-1 rounded transition-colors border border-transparent hover:border-blue-200" title="日付順に並び替え">
+                                            <i className="fa-solid fa-arrow-down-short-wide"></i> 日付順
+                                        </button>
+                                    </div>
                                     <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
-                                        {schedules.map(sc => (
-                                            <div key={sc.id} className="flex flex-col gap-1 text-sm border-b pb-2 dark:border-slate-700">
+                                        {schedules.map(sc => {
+                                            // 新機能: スケジュールの期限カラー
+                                            const styles = getDueDateStyles(sc.date, false);
+                                            return (
+                                            <div key={sc.id} className={`flex flex-col gap-1 text-sm border-b pb-2 dark:border-slate-700 ${styles.borderClass}`}>
                                                 <div className="flex gap-2">
-                                                    <input type="date" className="border rounded p-1 text-xs dark:bg-slate-700 dark:border-slate-600" value={sc.date} onChange={e => setSchedules(schedules.map(s => s.id === sc.id ? {...s, date: e.target.value} : s))}/>
+                                                    <input type="date" className={`border rounded p-1 text-xs dark:bg-slate-700 dark:border-slate-600 ${styles.textClass}`} value={sc.date} onChange={e => setSchedules(schedules.map(s => s.id === sc.id ? {...s, date: e.target.value} : s))}/>
                                                     <button onClick={() => setSchedules(schedules.filter(s => s.id !== sc.id))} className="text-rose-400 ml-auto hover:text-rose-600"><i className="fa-solid fa-xmark"></i></button>
                                                 </div>
-                                                <LocalInput value={sc.title} onChange={(val) => setSchedules(schedules.map(s => s.id === sc.id ? {...s, title: val} : s))} className="w-full bg-slate-50 dark:bg-slate-900 rounded p-1.5 focus:ring-1 border-none" placeholder="予定内容"/>
+                                                <LocalInput value={sc.title} onChange={(val) => setSchedules(schedules.map(s => s.id === sc.id ? {...s, title: val} : s))} className="w-full bg-slate-50 dark:bg-slate-900 rounded p-1.5 focus:ring-1 border-none ml-1" placeholder="予定内容"/>
                                             </div>
-                                        ))}
+                                        )})}
                                     </div>
                                     <button onClick={() => setSchedules([...schedules, {id: Date.now().toString(), title: '', date: ''}])} className="mt-3 text-xs bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg w-full font-bold dark:bg-blue-900/30 hover:bg-blue-100 transition-colors"><i className="fa-solid fa-plus mr-1"></i>追加</button>
                                 </div>
@@ -547,7 +618,11 @@
                 const task = tasks.find(t => t.id === selectedTaskId);
                 const [bgmType, setBgmType] = useState('none');
                 const [tagInput, setTagInput] = useState('');
+                const [taskFileName, setTaskFileName] = useState('');
+
                 useEffect(() => { return () => stopBGM(); }, []);
+                useEffect(() => { if(task) setTaskFileName(`${task.title}.json`); }, [task?.title]);
+
                 if (!task) return null;
 
                 const updateTask = (updates) => setTasks(tasks.map(t => t.id === task.id ? { ...t, ...updates } : t));
@@ -586,7 +661,17 @@
                     <div className="flex-1 min-w-0 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 md:p-8">
                         <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100 dark:border-slate-700">
                             <button onClick={() => setCurrentView('dashboard')} className="text-slate-500 hover:text-primary font-medium"><i className="fa-solid fa-arrow-left mr-2"></i>戻る</button>
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 flex-wrap justify-end">
+                                {githubSettings.token && (
+                                    <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-900 border dark:border-slate-700 rounded p-1">
+                                        <LocalInput value={taskFileName} onChange={setTaskFileName} className="w-24 md:w-32 text-xs p-1 bg-transparent border-none focus:ring-0 dark:text-slate-200" placeholder="ファイル名"/>
+                                        <button onClick={() => uploadTextToGithub(`data/${task.title}/${taskFileName}`, JSON.stringify(task, null, 2))} 
+                                            disabled={isGithubLoading}
+                                            className="p-1 text-slate-500 hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title={`data/${task.title}/ フォルダへ保存`}>
+                                            {isGithubLoading ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-brands fa-github"></i>}
+                                        </button>
+                                    </div>
+                                )}
                                 <button onClick={() => updateTask({ isSecret: !task.isSecret })} className={`p-2 rounded ${task.isSecret ? 'text-rose-500 bg-rose-50 dark:bg-rose-900/30' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'}`} title="秘密にする"><i className={`fa-solid ${task.isSecret ? 'fa-lock' : 'fa-lock-open'}`}></i></button>
                                 <button onClick={() => setIsFocusMode(true)} className="px-4 py-2 bg-primary/10 text-primary rounded hover:bg-primary/20 font-bold text-sm"><i className="fa-solid fa-expand mr-2"></i>集中</button>
                             </div>
@@ -594,12 +679,12 @@
 
                         <LocalInput value={task.title} onChange={(val) => updateTask({ title: val })} className="w-full text-2xl md:text-3xl font-extrabold bg-transparent border-none focus:ring-0 mb-4 p-0 dark:text-slate-100" placeholder="タスク名を入力..." />
 
-                        {/* 締切とタグ */}
+                        {/* 締切とタグ (タスク詳細内でも期限の文字色を強調) */}
                         <div className="flex flex-wrap items-center gap-4 mb-6 bg-slate-50 dark:bg-slate-900 p-3 rounded-lg border dark:border-slate-700">
                             <div className="flex items-center">
-                                <i className="fa-regular fa-calendar text-slate-400 mr-2"></i>
-                                <span className="text-sm font-bold text-slate-600 dark:text-slate-300 mr-2">締め切り:</span>
-                                <input type="date" className="bg-white dark:bg-slate-800 border rounded px-2 py-1 text-sm dark:border-slate-600 dark:text-slate-200 cursor-pointer" value={task.dueDate || ''} onChange={(e) => updateTask({ dueDate: e.target.value })}/>
+                                <i className={`fa-regular fa-calendar mr-2 ${getDueDateStyles(task.dueDate, false).textClass}`}></i>
+                                <span className={`text-sm font-bold mr-2 ${getDueDateStyles(task.dueDate, false).textClass}`}>締め切り:</span>
+                                <input type="date" className={`bg-white dark:bg-slate-800 border rounded px-2 py-1 text-sm dark:border-slate-600 cursor-pointer ${getDueDateStyles(task.dueDate, false).textClass}`} value={task.dueDate || ''} onChange={(e) => updateTask({ dueDate: e.target.value })}/>
                             </div>
                             <div className="flex items-center gap-2 flex-wrap border-l pl-4 dark:border-slate-700">
                                 <i className="fa-solid fa-tag text-slate-400"></i>
@@ -624,7 +709,6 @@
                             </button>
                         </div>
 
-                        {/* 細分項目 (チラつき防止) */}
                         <h3 className="font-bold mb-3 text-slate-700 dark:text-slate-200"><i className="fa-regular fa-square-check text-emerald-500 mr-2"></i>細分項目</h3>
                         <div className="space-y-2 mb-8">
                             {task.subtasks.map((sub) => (
@@ -648,7 +732,6 @@
                 );
             };
 
-            // 分析ダッシュボード
             const AnalyticsView = () => {
                 const totalCompleted = tasks.filter(t => t.status === 'completed').length;
                 const completedRoutines = tasks.filter(t => t.type === 'routine' && t.status === 'completed').length;
@@ -687,7 +770,6 @@
                 );
             };
 
-            // GitHub Folder View (完全版)
             const GithubView = () => {
                 if(!githubSettings.token) return (
                     <div className="flex-1 p-8 text-center bg-white dark:bg-slate-800 rounded-2xl border dark:border-slate-700">
@@ -787,14 +869,12 @@
                     <div className="flex-1 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 md:p-8 space-y-6">
                         <h1 className="text-2xl font-bold mb-6"><i className="fa-solid fa-gear text-slate-500 mr-3"></i>設定・連携</h1>
                         
-                        {/* JSONインポート機能 (hub_backup.json対応) */}
                         <div className="p-4 border rounded-xl bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800/50">
                             <h3 className="font-bold mb-2 flex items-center text-amber-700 dark:text-amber-500"><i className="fa-solid fa-file-import mr-2"></i>外部データ (JSON) インポート</h3>
                             <p className="text-xs text-slate-600 dark:text-slate-400 mb-3">hub_backup.json等のバックアップファイルからデータを読み込みます。</p>
                             <input type="file" accept=".json" onChange={importJSONData} className="text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-amber-100 file:text-amber-700 hover:file:bg-amber-200 cursor-pointer"/>
                         </div>
 
-                        {/* テーマカラー変更 */}
                         <div className="p-4 border rounded-xl bg-slate-50 dark:bg-slate-900 dark:border-slate-700">
                             <h3 className="font-bold mb-3 flex items-center"><i className="fa-solid fa-palette text-primary mr-2"></i>カスタムテーマカラー</h3>
                             <div className="flex gap-3">
@@ -808,7 +888,7 @@
                         <div className="p-4 border rounded-xl bg-slate-50 dark:bg-slate-900 dark:border-slate-700">
                             <h3 className="font-bold mb-2 flex items-center"><i className="fa-solid fa-lock text-rose-500 mr-2"></i>シークレットPIN (タスクロック用)</h3>
                             <div className="flex gap-2">
-                                <input type="password" value={pinCode} onChange={e => setPinCode(e.target.value)} onBlur={() => localStorage.setItem('taskMaster_pin', pinCode)} placeholder="数字や文字" className="border p-2 rounded w-full max-w-xs dark:bg-slate-800 dark:border-slate-600"/>
+                                <LocalInput type="password" value={pinCode} onChange={val => {setPinCode(val); localStorage.setItem('taskMaster_pin', val);}} placeholder="数字や文字" className="border p-2 rounded w-full max-w-xs dark:bg-slate-800 dark:border-slate-600"/>
                                 {pinCode && <button onClick={() => setIsUnlocked(!isUnlocked)} className="px-4 py-2 bg-primary/10 text-primary rounded text-sm font-bold">{isUnlocked ? "ロックする" : "ロック解除中"}</button>}
                             </div>
                         </div>
@@ -816,10 +896,10 @@
                         <div className="p-4 border rounded-xl bg-slate-50 dark:bg-slate-900 dark:border-slate-700">
                             <h3 className="font-bold mb-2 flex items-center"><i className="fa-brands fa-github mr-2"></i>GitHub連携バックアップ</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-                                <input type="password" placeholder="Personal Access Token" className="border p-2 rounded dark:bg-slate-800 text-sm" value={githubSettings.token} onChange={e => setGithubSettings({...githubSettings, token: e.target.value})}/>
+                                <LocalInput type="password" placeholder="Personal Access Token" className="border p-2 rounded dark:bg-slate-800 text-sm" value={githubSettings.token} onChange={val => setGithubSettings({...githubSettings, token: val})}/>
                                 <div className="flex gap-2">
-                                    <input type="text" placeholder="Owner" className="w-1/2 border p-2 rounded dark:bg-slate-800 text-sm" value={githubSettings.owner} onChange={e => setGithubSettings({...githubSettings, owner: e.target.value})}/>
-                                    <input type="text" placeholder="Repo" className="w-1/2 border p-2 rounded dark:bg-slate-800 text-sm" value={githubSettings.repo} onChange={e => setGithubSettings({...githubSettings, repo: e.target.value})}/>
+                                    <LocalInput placeholder="Owner" className="w-1/2 border p-2 rounded dark:bg-slate-800 text-sm" value={githubSettings.owner} onChange={val => setGithubSettings({...githubSettings, owner: val})}/>
+                                    <LocalInput placeholder="Repo" className="w-1/2 border p-2 rounded dark:bg-slate-800 text-sm" value={githubSettings.repo} onChange={val => setGithubSettings({...githubSettings, repo: val})}/>
                                 </div>
                             </div>
                         </div>
@@ -828,8 +908,8 @@
                             <button onClick={() => { const nd = !isDarkMode; setIsDarkMode(nd); document.documentElement.classList.toggle('dark', nd); }} className="p-4 border rounded-xl text-center hover:bg-slate-50 dark:hover:bg-slate-700 dark:border-slate-700 transition-colors">
                                 <i className={`fa-solid ${isDarkMode ? 'fa-sun text-yellow-400' : 'fa-moon text-indigo-500'} text-2xl mb-2`}></i><br/><span className="text-sm font-bold">モード切替</span>
                             </button>
-                            <button onClick={exportAllData} className="p-4 border rounded-xl text-center hover:bg-slate-50 dark:hover:bg-slate-700 dark:border-slate-700 transition-colors">
-                                <i className="fa-solid fa-download text-emerald-500 text-2xl mb-2"></i><br/><span className="text-sm font-bold">全データ保存</span>
+                            <button onClick={() => exportAllData('taskmaster_backup.json', { tasks, schedules, activityLog, userStats, memos, todos, githubSettings })} className="p-4 border rounded-xl text-center hover:bg-slate-50 dark:hover:bg-slate-700 dark:border-slate-700 transition-colors">
+                                <i className="fa-solid fa-download text-emerald-500 text-2xl mb-2"></i><br/><span className="text-sm font-bold">ローカル保存</span>
                             </button>
                             <div className="col-span-2 p-4 border rounded-xl bg-slate-50 dark:bg-slate-900 dark:border-slate-700 flex flex-col items-center justify-center">
                                 <p className="text-xs font-bold mb-2">スマホ引継ぎ用QR</p>
