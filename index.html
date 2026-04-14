@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Task Master Pro V4</title>
+    <title>Task Master Pro V5</title>
 
     <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%236366f1'/><path d='M25 50 l15 15 l35 -35' stroke='white' stroke-width='10' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>" type="image/svg+xml">
     <link rel="apple-touch-icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%236366f1'/><path d='M25 50 l15 15 l35 -35' stroke='white' stroke-width='10' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
@@ -163,6 +163,13 @@
             }, [tasks, schedules, activityLog, userStats, isDarkMode, themeColor, todos, memos, githubSettings]);
 
             // --- Core Functions ---
+            const exportAllData = () => {
+                const a = document.createElement('a'); 
+                a.href = URL.createObjectURL(new Blob([JSON.stringify({ tasks, schedules, activityLog, userStats, memos, todos, githubSettings })], { type: 'application/json' })); 
+                a.download = 'taskmaster_backup.json'; 
+                a.click();
+            };
+
             const logActivityAndGainXP = () => {
                 const today = new Date().toISOString().split('T')[0];
                 setActivityLog(prev => ({ ...prev, [today]: (prev[today] || 0) + 1 }));
@@ -259,11 +266,47 @@
                             method: 'PUT', headers: { 'Authorization': `token ${githubSettings.token}`, 'Content-Type': 'application/json' },
                             body: JSON.stringify({ message: `Upload ${fileObj.name}`, content: base64, ...(sha && { sha }) })
                         });
-                        if(res.ok) { alert("アップロード完了！"); fetchGithubPath(githubPath); }
+                        if(res.ok) { alert(`${fileObj.name} アップロード完了！`); fetchGithubPath(githubPath); }
+                        else { alert(`${fileObj.name} のアップロードに失敗しました。`); }
                     };
                     reader.readAsDataURL(fileObj);
-                } catch(e) {}
+                } catch(e) { console.error(e); }
                 setIsGithubLoading(false);
+            };
+
+            const deleteGithubFile = async (fileObj) => {
+                if (!githubSettings.token) return;
+                if (!confirm(`「${fileObj.name}」を完全に削除しますか？\n(※フォルダの場合は中身が空である必要があります)`)) return;
+                setIsGithubLoading(true);
+                try {
+                    const res = await fetch(`https://api.github.com/repos/${githubSettings.owner}/${githubSettings.repo}/contents/${fileObj.path}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `token ${githubSettings.token}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message: `Delete ${fileObj.name}`, sha: fileObj.sha })
+                    });
+                    if(res.ok) { alert("削除しました！"); fetchGithubPath(githubPath); }
+                    else { alert("削除に失敗しました。フォルダの場合は先に中身を空にしてください。"); }
+                } catch(e) { console.error(e); }
+                setIsGithubLoading(false);
+            };
+
+            const downloadGithubFile = async (fileObj) => {
+                if(!fileObj.download_url) return;
+                try {
+                    const res = await fetch(fileObj.download_url);
+                    if(!res.ok) throw new Error("Network error");
+                    const blob = await res.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = fileObj.name;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    window.URL.revokeObjectURL(url);
+                } catch(e) {
+                    window.open(fileObj.download_url, '_blank'); // fallback
+                }
             };
 
             const createGithubFolder = async () => {
@@ -301,6 +344,9 @@
 
             // --- UI Components ---
             const Sidebar = () => {
+                const [isTodoExpanded, setIsTodoExpanded] = useState(true);
+                const [isMemoExpanded, setIsMemoExpanded] = useState(true);
+                
                 const activeMemo = memos.find(m => m.id === currentMemoId) || memos[0] || { content: '' };
                 const handleMemoUpdate = (id, field, value) => setMemos(memos.map(m => m.id === id ? {...m, [field]: value} : m));
 
@@ -324,28 +370,39 @@
                             <button onClick={() => setCurrentView('settings')} className={`text-left px-4 py-2 text-sm font-bold rounded flex items-center transition-colors ${currentView === 'settings' ? 'bg-slate-100 text-slate-700 dark:bg-slate-700' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700'}`}><i className="fa-solid fa-gear w-5"></i> 設定</button>
                         </div>
 
-                        {/* 同期ToDo (複数＆入力安定化) */}
+                        {/* 同期ToDo (折り畳み対応) */}
                         <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-3">
-                            <h3 className="font-bold text-slate-700 dark:text-slate-200 mb-2 text-sm"><i className="fa-solid fa-check-double text-primary mr-2"></i>同期ToDo</h3>
-                            <div className="max-h-32 overflow-y-auto space-y-1 mb-2">
-                                {todos.map(todo => (
-                                    <div key={todo.id} className="flex items-center gap-2 text-sm group">
-                                        <input type="checkbox" checked={todo.completed} onChange={() => setTodos(todos.map(t => t.id === todo.id ? {...t, completed: !t.completed} : t))} />
-                                        <LocalInput value={todo.text} onChange={(val) => setTodos(todos.map(t => t.id === todo.id ? {...t, text: val} : t))} className={`flex-1 bg-transparent border-none p-0 focus:ring-0 ${todo.completed ? 'line-through text-slate-400' : 'dark:text-slate-200'}`} />
-                                        <button onClick={() => setTodos(todos.filter(t => t.id !== todo.id))} className="text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100"><i className="fa-solid fa-xmark"></i></button>
+                            <h3 onClick={() => setIsTodoExpanded(!isTodoExpanded)} className="font-bold text-slate-700 dark:text-slate-200 mb-2 text-sm flex items-center justify-between cursor-pointer select-none">
+                                <span><i className="fa-solid fa-check-double text-primary mr-2"></i>同期ToDo</span>
+                                <i className={`fa-solid fa-chevron-${isTodoExpanded ? 'down' : 'right'} text-xs text-slate-400 transition-transform`}></i>
+                            </h3>
+                            {isTodoExpanded && (
+                                <>
+                                    <div className="max-h-32 overflow-y-auto space-y-1 mb-2">
+                                        {todos.map(todo => (
+                                            <div key={todo.id} className="flex items-center gap-2 text-sm group">
+                                                <input type="checkbox" checked={todo.completed} onChange={() => setTodos(todos.map(t => t.id === todo.id ? {...t, completed: !t.completed} : t))} />
+                                                <LocalInput value={todo.text} onChange={(val) => setTodos(todos.map(t => t.id === todo.id ? {...t, text: val} : t))} className={`flex-1 bg-transparent border-none p-0 focus:ring-0 ${todo.completed ? 'line-through text-slate-400' : 'dark:text-slate-200'}`} />
+                                                <button onClick={() => setTodos(todos.filter(t => t.id !== todo.id))} className="text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100"><i className="fa-solid fa-xmark"></i></button>
+                                            </div>
+                                        ))}
                                     </div>
-                                ))}
-                            </div>
-                            <button onClick={() => setTodos([...todos, {id: Date.now(), text: '新規', completed: false}])} className="text-xs text-primary font-bold"><i className="fa-solid fa-plus mr-1"></i>追加</button>
+                                    <button onClick={() => setTodos([...todos, {id: Date.now(), text: '新規', completed: false}])} className="text-xs text-primary font-bold"><i className="fa-solid fa-plus mr-1"></i>追加</button>
+                                </>
+                            )}
                         </div>
 
-                        {/* 複数タブ同期メモ */}
-                        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-3 flex flex-col flex-1">
-                            <div className="flex justify-between items-center mb-2">
-                                <h3 className="font-bold text-slate-700 dark:text-slate-200 text-sm"><i className="fa-regular fa-file-lines text-amber-500 mr-2"></i>同期メモ</h3>
-                                <button onClick={() => { const newM = {id: Date.now(), title: '新規', content: ''}; setMemos([...memos, newM]); setCurrentMemoId(newM.id); }} className="text-xs text-amber-600"><i className="fa-solid fa-plus"></i></button>
+                        {/* 複数タブ同期メモ (折り畳み＆高さ固定対応) */}
+                        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-3 flex flex-col flex-shrink-0">
+                            <div className="flex justify-between items-center mb-2 cursor-pointer select-none" onClick={(e) => { if(e.target.tagName !== 'BUTTON' && e.target.tagName !== 'I') setIsMemoExpanded(!isMemoExpanded); }}>
+                                <h3 className="font-bold text-slate-700 dark:text-slate-200 text-sm flex items-center">
+                                    <i className="fa-regular fa-file-lines text-amber-500 mr-2"></i>同期メモ
+                                    <i className={`fa-solid fa-chevron-${isMemoExpanded ? 'down' : 'right'} ml-2 text-xs text-slate-400 transition-transform`}></i>
+                                </h3>
+                                <button onClick={(e) => { e.stopPropagation(); const newM = {id: Date.now(), title: '新規', content: ''}; setMemos([...memos, newM]); setCurrentMemoId(newM.id); setIsMemoExpanded(true); }} className="text-xs text-amber-600"><i className="fa-solid fa-plus"></i></button>
                             </div>
-                            {memos.length > 0 && (
+                            
+                            {isMemoExpanded && memos.length > 0 && (
                                 <div className="flex gap-1 mb-2">
                                     <select className="flex-1 text-xs p-1 border rounded dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200" value={currentMemoId || ''} onChange={e => setCurrentMemoId(Number(e.target.value))}>
                                         {memos.map(m => <option key={m.id} value={m.id}>{m.title}</option>)}
@@ -353,10 +410,12 @@
                                     <button onClick={() => { if(confirm('削除しますか？')) { const nm = memos.filter(m => m.id !== currentMemoId); setMemos(nm); setCurrentMemoId(nm.length?nm[0].id:null); } }} className="text-rose-500 p-1"><i className="fa-solid fa-trash"></i></button>
                                 </div>
                             )}
-                            {currentMemoId && (
-                                <div className="flex flex-col flex-1 gap-1">
+                            
+                            {isMemoExpanded && currentMemoId && (
+                                <div className="flex flex-col gap-1">
                                     <LocalInput value={activeMemo.title} onChange={(val) => handleMemoUpdate(currentMemoId, 'title', val)} className="text-xs font-bold bg-transparent border-b focus:ring-0 dark:text-slate-200 dark:border-slate-700 p-1" placeholder="タイトル"/>
-                                    <LocalInput isTextarea value={activeMemo.content} onChange={(val) => handleMemoUpdate(currentMemoId, 'content', val)} className="w-full flex-1 min-h-[80px] p-2 text-sm border rounded bg-slate-50 dark:bg-slate-900 resize-none dark:text-slate-200 dark:border-slate-700 focus:ring-1 focus:ring-amber-500" placeholder="内容..."/>
+                                    {/* 高さを固定にしてリサイズ禁止 */}
+                                    <LocalInput isTextarea value={activeMemo.content} onChange={(val) => handleMemoUpdate(currentMemoId, 'content', val)} className="w-full h-[150px] p-2 text-sm border rounded bg-slate-50 dark:bg-slate-900 resize-none dark:text-slate-200 dark:border-slate-700 focus:ring-1 focus:ring-amber-500" placeholder="内容..."/>
                                 </div>
                             )}
                         </div>
@@ -436,6 +495,14 @@
                 const tags = Array.from(new Set(tasks.flatMap(t => t.tags || [])));
                 return (
                     <div className="flex-1 min-w-0">
+                        {/* ヘッダー部分に全データ保存ボタンを追加！ */}
+                        <div className="flex justify-between items-center mb-6">
+                            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">ダッシュボード</h1>
+                            <button onClick={exportAllData} className="px-4 py-2 bg-slate-800 dark:bg-slate-700 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-slate-700 dark:hover:bg-slate-600 transition-colors flex items-center">
+                                <i className="fa-solid fa-download mr-2"></i>全データ保存
+                            </button>
+                        </div>
+
                         {aiMessage && <div className="mb-4 bg-gradient-to-r from-yellow-100 to-orange-100 dark:from-yellow-900/40 border-l-4 border-yellow-400 p-3 rounded text-orange-800 dark:text-orange-200 font-bold animate-bounce"><i className="fa-solid fa-robot mr-2"></i>{aiMessage}</div>}
                         
                         {/* タグフィルター */}
@@ -581,7 +648,7 @@
                 );
             };
 
-            // 分析ダッシュボード (新機能)
+            // 分析ダッシュボード
             const AnalyticsView = () => {
                 const totalCompleted = tasks.filter(t => t.status === 'completed').length;
                 const completedRoutines = tasks.filter(t => t.type === 'routine' && t.status === 'completed').length;
@@ -620,7 +687,7 @@
                 );
             };
 
-            // GitHub Folder View (新機能)
+            // GitHub Folder View (完全版)
             const GithubView = () => {
                 if(!githubSettings.token) return (
                     <div className="flex-1 p-8 text-center bg-white dark:bg-slate-800 rounded-2xl border dark:border-slate-700">
@@ -632,7 +699,9 @@
 
                 const handleDropUpload = (e) => {
                     e.preventDefault(); e.currentTarget.classList.remove('dragging');
-                    if(e.dataTransfer.files && e.dataTransfer.files.length > 0) uploadToGithub(e.dataTransfer.files[0]);
+                    if(e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                        Array.from(e.dataTransfer.files).forEach(file => uploadToGithub(file));
+                    }
                 };
 
                 return (
@@ -640,8 +709,8 @@
                         <div className="flex items-center justify-between mb-6">
                             <h1 className="text-2xl font-bold"><i className="fa-brands fa-github mr-3 text-slate-600 dark:text-slate-300"></i>クラウドファイル</h1>
                             <div className="flex gap-2">
-                                <button onClick={createGithubFolder} className="px-3 py-1.5 bg-slate-100 dark:bg-slate-700 rounded text-sm font-bold"><i className="fa-solid fa-folder-plus mr-1"></i>新規フォルダ</button>
-                                <button onClick={() => fetchGithubPath(githubPath)} className="px-3 py-1.5 bg-slate-100 dark:bg-slate-700 rounded text-sm font-bold"><i className="fa-solid fa-rotate-right"></i></button>
+                                <button onClick={createGithubFolder} className="px-3 py-1.5 bg-slate-100 dark:bg-slate-700 rounded text-sm font-bold hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"><i className="fa-solid fa-folder-plus mr-1"></i>新規フォルダ</button>
+                                <button onClick={() => fetchGithubPath(githubPath)} className="px-3 py-1.5 bg-slate-100 dark:bg-slate-700 rounded text-sm font-bold hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"><i className="fa-solid fa-rotate-right"></i></button>
                             </div>
                         </div>
 
@@ -665,12 +734,15 @@
                                 <div className="space-y-1">
                                     {githubFiles.length === 0 && <p className="text-center text-slate-400 py-10 text-sm">ファイルはありません<br/>ここにドラッグ＆ドロップでアップロードできます</p>}
                                     {githubFiles.map(file => (
-                                        <div key={file.sha} className="flex justify-between items-center p-2 hover:bg-white dark:hover:bg-slate-800 rounded border border-transparent hover:border-slate-200 dark:hover:border-slate-700">
-                                            <div className="flex items-center gap-3 overflow-hidden cursor-pointer flex-1" onClick={() => file.type === 'dir' ? fetchGithubPath(file.path) : window.open(file.download_url, '_blank')}>
+                                        <div key={file.sha} className="flex justify-between items-center p-2 hover:bg-white dark:hover:bg-slate-800 rounded border border-transparent hover:border-slate-200 dark:hover:border-slate-700 group">
+                                            <div className="flex items-center gap-3 overflow-hidden cursor-pointer flex-1" onClick={() => file.type === 'dir' ? fetchGithubPath(file.path) : downloadGithubFile(file)}>
                                                 {file.type === 'dir' ? <i className="fa-solid fa-folder text-amber-400 text-lg"></i> : <i className="fa-regular fa-file-lines text-slate-400 text-lg"></i>}
                                                 <span className="text-sm font-semibold truncate">{file.name}</span>
                                             </div>
-                                            {file.type === 'file' && <a href={file.download_url} target="_blank" className="text-slate-400 hover:text-primary p-2"><i className="fa-solid fa-download"></i></a>}
+                                            <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                {file.type === 'file' && <button onClick={() => downloadGithubFile(file)} className="text-slate-400 hover:text-primary p-2" title="ダウンロード"><i className="fa-solid fa-download"></i></button>}
+                                                <button onClick={() => deleteGithubFile(file)} className="text-slate-400 hover:text-rose-500 p-2" title="削除"><i className="fa-solid fa-trash-can"></i></button>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -756,9 +828,7 @@
                             <button onClick={() => { const nd = !isDarkMode; setIsDarkMode(nd); document.documentElement.classList.toggle('dark', nd); }} className="p-4 border rounded-xl text-center hover:bg-slate-50 dark:hover:bg-slate-700 dark:border-slate-700 transition-colors">
                                 <i className={`fa-solid ${isDarkMode ? 'fa-sun text-yellow-400' : 'fa-moon text-indigo-500'} text-2xl mb-2`}></i><br/><span className="text-sm font-bold">モード切替</span>
                             </button>
-                            <button onClick={() => {
-                                const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify({ tasks, schedules, userStats, memos, todos })], { type: 'application/json' })); a.download = 'taskmaster_backup.json'; a.click();
-                            }} className="p-4 border rounded-xl text-center hover:bg-slate-50 dark:hover:bg-slate-700 dark:border-slate-700 transition-colors">
+                            <button onClick={exportAllData} className="p-4 border rounded-xl text-center hover:bg-slate-50 dark:hover:bg-slate-700 dark:border-slate-700 transition-colors">
                                 <i className="fa-solid fa-download text-emerald-500 text-2xl mb-2"></i><br/><span className="text-sm font-bold">全データ保存</span>
                             </button>
                             <div className="col-span-2 p-4 border rounded-xl bg-slate-50 dark:bg-slate-900 dark:border-slate-700 flex flex-col items-center justify-center">
