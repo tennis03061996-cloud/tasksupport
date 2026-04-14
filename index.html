@@ -1,15 +1,15 @@
 <!DOCTYPE html>
-<html lang="ja" class="light theme-indigo">
+<html lang="ja" class="light theme-ocean">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Task Master Pro V7</title>
+    <title>Task Master Pro V8</title>
 
-    <!-- 約束の自動追加アイコン -->
-    <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%236366f1'/><path d='M25 50 l15 15 l35 -35' stroke='white' stroke-width='10' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>" type="image/svg+xml">
-    <link rel="apple-touch-icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%236366f1'/><path d='M25 50 l15 15 l35 -35' stroke='white' stroke-width='10' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+    <!-- 約束の自動追加アイコン (自然テーマのOceanカラーに合わせて変更) -->
+    <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='25' fill='%230ea5e9'/><path d='M25 50 l15 15 l35 -35' stroke='white' stroke-width='10' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='25' fill='%230ea5e9'/><path d='M25 50 l15 15 l35 -35' stroke='white' stroke-width='10' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -19,19 +19,33 @@
         }
     </script>
     <style>
-        /* カスタムテーマのカラーパレット */
-        :root { --primary-color: #6366f1; --primary-dark: #4f46e5; } /* indigo */
-        .theme-emerald { --primary-color: #10b981; --primary-dark: #059669; }
-        .theme-rose { --primary-color: #f43f5e; --primary-dark: #e11d48; }
-        .theme-amber { --primary-color: #f59e0b; --primary-dark: #d97706; }
-        .theme-slate { --primary-color: #64748b; --primary-dark: #475569; }
+        /* 海・空・森をテーマにした美しい自然のカラーパレット */
+        :root { --primary-color: #0ea5e9; --primary-dark: #0369a1; } /* theme-ocean (デフォルト) */
+        .theme-forest { --primary-color: #10b981; --primary-dark: #047857; } 
+        .theme-sky { --primary-color: #6366f1; --primary-dark: #4338ca; } 
+        .theme-sunset { --primary-color: #f97316; --primary-dark: #c2410c; } 
+        .theme-earth { --primary-color: #84cc16; --primary-dark: #4d7c0f; } 
 
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; transition: background-color 0.3s, color 0.3s; }
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; transition: background-color 0.5s ease, color 0.5s ease; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+        ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.5); border-radius: 10px; }
+        .dark ::-webkit-scrollbar-thumb { background: rgba(71, 85, 105, 0.5); }
         .dragging { opacity: 0.5; transform: scale(0.98); border: 2px dashed var(--primary-color); }
+        
+        /* グラスモーフィズム用の共通クラス */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+        }
+        .dark .glass-panel {
+            background: rgba(30, 41, 59, 0.75);
+            border: 1px solid rgba(71, 85, 105, 0.4);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        }
     </style>
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -40,7 +54,7 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 </head>
-<body class="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-100 antialiased">
+<body class="bg-gradient-to-br from-blue-50 via-teal-50 to-emerald-50 dark:from-slate-900 dark:via-cyan-950 dark:to-teal-950 text-slate-800 dark:text-slate-100 antialiased min-h-screen">
     <div id="root"></div>
 
     <script type="text/babel">
@@ -65,14 +79,17 @@
         };
         const stopBGM = () => { if (bgmNode) { bgmNode.stop(); bgmNode.disconnect(); bgmNode = null; } };
 
-        // ★入力チラつき防止コンポーネント
-        const LocalInput = ({ value, onChange, onEnter, placeholder, className, isTextarea, type = "text" }) => {
+        // ★入力チラつき防止コンポーネント (list対応版)
+        const LocalInput = ({ value, onChange, onEnter, placeholder, className, isTextarea, type = "text", list }) => {
             const [localVal, setLocalVal] = useState(value || '');
             useEffect(() => { setLocalVal(value || ''); }, [value]);
             const handleBlur = () => { if (localVal !== value) onChange(localVal); };
             const handleKeyDown = (e) => { if (e.key === 'Enter' && onEnter && !isTextarea) { e.preventDefault(); e.target.blur(); onEnter(); } };
+            // リスト（サジェスト）から選ばれた場合はすぐに反映させる
+            const handleChange = (e) => { setLocalVal(e.target.value); if(list) onChange(e.target.value); };
+            
             if (isTextarea) return <textarea value={localVal} onChange={e => setLocalVal(e.target.value)} onBlur={handleBlur} placeholder={placeholder} className={className} />;
-            return <input type={type} value={localVal} onChange={e => setLocalVal(e.target.value)} onBlur={handleBlur} onKeyDown={handleKeyDown} placeholder={placeholder} className={className} />;
+            return <input type={type} list={list} value={localVal} onChange={handleChange} onBlur={handleBlur} onKeyDown={handleKeyDown} placeholder={placeholder} className={className} />;
         };
 
         function App() {
@@ -83,7 +100,7 @@
             
             // Preferences
             const [isDarkMode, setIsDarkMode] = useState(false);
-            const [themeColor, setThemeColor] = useState('theme-indigo');
+            const [themeColor, setThemeColor] = useState('theme-ocean');
             const [pinCode, setPinCode] = useState('');
             const [isUnlocked, setIsUnlocked] = useState(false);
             
@@ -98,11 +115,12 @@
             const [memos, setMemos] = useState([]);
             const [currentMemoId, setCurrentMemoId] = useState(null);
             
-            // GitHub Feature
+            // GitHub Feature & Backup History
             const [githubSettings, setGithubSettings] = useState({ token: '', owner: '', repo: '' });
             const [githubFiles, setGithubFiles] = useState([]);
             const [githubPath, setGithubPath] = useState('');
             const [isGithubLoading, setIsGithubLoading] = useState(false);
+            const [backupHistory, setBackupHistory] = useState([]); // ★保存先履歴ステート
 
             // AI & Utilities
             const [isAiLoading, setIsAiLoading] = useState(false);
@@ -130,8 +148,9 @@
                 setUserStats(safeParse('taskMaster_stats', {level: 1, xp: 0}));
                 setGithubSettings(safeParse('taskMaster_github', {token: '', owner: '', repo: ''}));
                 setPinCode(localStorage.getItem('taskMaster_pin') || '');
+                setBackupHistory(safeParse('taskMaster_backupHistory', ['backup.json'])); // ★履歴ロード
                 
-                const tColor = localStorage.getItem('taskMaster_themeColor') || 'theme-indigo';
+                const tColor = localStorage.getItem('taskMaster_themeColor') || 'theme-ocean';
                 setThemeColor(tColor); document.documentElement.className = `light ${tColor}`;
                 const lTheme = localStorage.getItem('taskMaster_theme') === 'dark';
                 setIsDarkMode(lTheme); document.documentElement.classList.toggle('dark', lTheme);
@@ -162,7 +181,7 @@
                 localStorage.setItem('grandMemos', JSON.stringify(memos));
             }, [tasks, schedules, activityLog, userStats, isDarkMode, themeColor, todos, memos, githubSettings]);
 
-            // --- 新機能: 日付カラー計算ヘルパー ---
+            // --- 日付カラー計算ヘルパー (ヒートアップ機能) ---
             const getDueDateStyles = (dateStr, isCompleted) => {
                 if (!dateStr || isCompleted) return { borderClass: '', textClass: 'text-slate-500' };
                 const target = new Date(dateStr); const today = new Date();
@@ -180,7 +199,7 @@
             const exportAllData = (filename, dataObj) => {
                 const a = document.createElement('a'); 
                 a.href = URL.createObjectURL(new Blob([JSON.stringify(dataObj, null, 2)], { type: 'application/json' })); 
-                a.download = filename || 'taskmaster_backup.json'; 
+                a.download = filename || 'backup.json'; 
                 a.click();
             };
 
@@ -216,12 +235,12 @@
 
             // AI Features
             const callAiMotivator = async () => {
-                if(!apiKey) { setAiMessage("君ならできる！応援してるよ！🔥"); setTimeout(()=>setAiMessage(""), 5000); return; }
+                if(!apiKey) { setAiMessage("自然の風を感じて！自分のペースで進めよう！🌿"); setTimeout(()=>setAiMessage(""), 5000); return; }
                 setIsAiLoading(true);
                 try {
                     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ contents: [{ parts: [{ text: "熱血なAIとしてタスク管理を頑張るユーザーを2文で熱く褒めて。" }] }] })
+                        body: JSON.stringify({ contents: [{ parts: [{ text: "タスク管理を頑張るユーザーを、森や海や空などの自然の要素に例えて2文で癒しつつ褒めて。" }] }] })
                     });
                     const data = await res.json(); setAiMessage(data.candidates?.[0]?.content?.parts?.[0]?.text || "素晴らしい！");
                 } catch (e) { setAiMessage("焦らず自分のペースで！"); }
@@ -382,65 +401,66 @@
 
                 return (
                     <div className="w-full md:w-72 flex-shrink-0 flex flex-col gap-4">
-                        <div className="bg-primary rounded-xl shadow-md p-4 text-white relative overflow-hidden group">
-                            <span className="font-bold flex items-center text-lg mb-2 relative z-10"><i className="fa-solid fa-medal text-yellow-300 mr-2"></i> Lv {userStats.level}</span>
-                            <div className="w-full bg-black/20 rounded-full h-2 mb-3 relative z-10"><div className="bg-yellow-400 h-2 rounded-full" style={{ width: `${Math.min(100, (userStats.xp / (userStats.level * 50)) * 100)}%` }}></div></div>
-                            <button onClick={callAiMotivator} disabled={isAiLoading} className="w-full py-1.5 bg-white/20 hover:bg-white/30 rounded-lg text-xs font-bold transition-colors relative z-10">
-                                {isAiLoading ? <i className="fa-solid fa-rotate-right animate-spin"></i> : <><i className="fa-solid fa-bolt text-yellow-300 mr-1"></i> AI応援を頼む！</>}
+                        <div className="bg-gradient-to-r from-primary to-primary-dark rounded-3xl shadow-lg p-5 text-white relative overflow-hidden group border border-white/20">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-10 -mt-10 blur-2xl"></div>
+                            <span className="font-bold flex items-center text-xl mb-3 relative z-10"><i className="fa-solid fa-leaf text-green-300 mr-2 drop-shadow-md"></i> Lv {userStats.level}</span>
+                            <div className="w-full bg-black/20 rounded-full h-2 mb-4 relative z-10 overflow-hidden"><div className="bg-gradient-to-r from-green-300 to-yellow-300 h-2 rounded-full transition-all duration-1000" style={{ width: `${Math.min(100, (userStats.xp / (userStats.level * 50)) * 100)}%` }}></div></div>
+                            <button onClick={callAiMotivator} disabled={isAiLoading} className="w-full py-2 bg-white/20 backdrop-blur-sm hover:bg-white/30 rounded-xl text-sm font-bold transition-all relative z-10 shadow-sm">
+                                {isAiLoading ? <i className="fa-solid fa-rotate-right animate-spin"></i> : <><i className="fa-solid fa-wind mr-1"></i> 自然のパワーをもらう！</>}
                             </button>
                         </div>
 
-                        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-2 flex flex-col gap-1">
-                            <button onClick={() => setCurrentView('dashboard')} className={`text-left px-4 py-2 text-sm font-bold rounded flex items-center transition-colors ${currentView === 'dashboard' ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700'}`}><i className="fa-solid fa-list-check w-5"></i> タスクボード</button>
-                            <button onClick={() => setCurrentView('analytics')} className={`text-left px-4 py-2 text-sm font-bold rounded flex items-center transition-colors ${currentView === 'analytics' ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700'}`}><i className="fa-solid fa-chart-line w-5"></i> 分析・ダッシュボード</button>
-                            <button onClick={() => { setCurrentView('github'); if(githubFiles.length===0) fetchGithubPath(); }} className={`text-left px-4 py-2 text-sm font-bold rounded flex items-center transition-colors ${currentView === 'github' ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700'}`}><i className="fa-solid fa-folder-open w-5"></i> クラウドファイル</button>
-                            <button onClick={() => setCurrentView('trash')} className={`text-left px-4 py-2 text-sm font-bold rounded flex items-center transition-colors ${currentView === 'trash' ? 'bg-rose-100 text-rose-600' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700'}`}><i className="fa-solid fa-trash-can w-5"></i> ごみ箱</button>
-                            <button onClick={() => setCurrentView('settings')} className={`text-left px-4 py-2 text-sm font-bold rounded flex items-center transition-colors ${currentView === 'settings' ? 'bg-slate-100 text-slate-700 dark:bg-slate-700' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-700'}`}><i className="fa-solid fa-gear w-5"></i> 設定</button>
+                        <div className="glass-panel rounded-3xl p-3 flex flex-col gap-1">
+                            <button onClick={() => setCurrentView('dashboard')} className={`text-left px-4 py-2.5 text-sm font-bold rounded-2xl flex items-center transition-all ${currentView === 'dashboard' ? 'bg-primary/10 text-primary shadow-sm' : 'text-slate-500 hover:bg-slate-100/50 dark:hover:bg-slate-700/50'}`}><i className="fa-solid fa-list-check w-6"></i> タスクボード</button>
+                            <button onClick={() => setCurrentView('analytics')} className={`text-left px-4 py-2.5 text-sm font-bold rounded-2xl flex items-center transition-all ${currentView === 'analytics' ? 'bg-primary/10 text-primary shadow-sm' : 'text-slate-500 hover:bg-slate-100/50 dark:hover:bg-slate-700/50'}`}><i className="fa-solid fa-chart-line w-6"></i> 分析・ダッシュボード</button>
+                            <button onClick={() => { setCurrentView('github'); if(githubFiles.length===0) fetchGithubPath(); }} className={`text-left px-4 py-2.5 text-sm font-bold rounded-2xl flex items-center transition-all ${currentView === 'github' ? 'bg-primary/10 text-primary shadow-sm' : 'text-slate-500 hover:bg-slate-100/50 dark:hover:bg-slate-700/50'}`}><i className="fa-solid fa-cloud w-6"></i> クラウドファイル</button>
+                            <button onClick={() => setCurrentView('trash')} className={`text-left px-4 py-2.5 text-sm font-bold rounded-2xl flex items-center transition-all ${currentView === 'trash' ? 'bg-rose-100/50 text-rose-600' : 'text-slate-500 hover:bg-slate-100/50 dark:hover:bg-slate-700/50'}`}><i className="fa-solid fa-trash-can w-6"></i> ごみ箱</button>
+                            <button onClick={() => setCurrentView('settings')} className={`text-left px-4 py-2.5 text-sm font-bold rounded-2xl flex items-center transition-all ${currentView === 'settings' ? 'bg-slate-200/50 text-slate-700 dark:bg-slate-700/50' : 'text-slate-500 hover:bg-slate-100/50 dark:hover:bg-slate-700/50'}`}><i className="fa-solid fa-gear w-6"></i> 設定・テーマ</button>
                         </div>
 
-                        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-3">
+                        <div className="glass-panel rounded-3xl p-4">
                             <h3 onClick={() => setIsTodoExpanded(!isTodoExpanded)} className="font-bold text-slate-700 dark:text-slate-200 mb-2 text-sm flex items-center justify-between cursor-pointer select-none">
                                 <span><i className="fa-solid fa-check-double text-primary mr-2"></i>同期ToDo</span>
                                 <i className={`fa-solid fa-chevron-${isTodoExpanded ? 'down' : 'right'} text-xs text-slate-400 transition-transform`}></i>
                             </h3>
                             {isTodoExpanded && (
                                 <>
-                                    <div className="max-h-32 overflow-y-auto space-y-1 mb-2">
+                                    <div className="max-h-32 overflow-y-auto space-y-1 mb-3 pr-1">
                                         {todos.map(todo => (
-                                            <div key={todo.id} className="flex items-center gap-2 text-sm group">
-                                                <input type="checkbox" checked={todo.completed} onChange={() => setTodos(todos.map(t => t.id === todo.id ? {...t, completed: !t.completed} : t))} />
+                                            <div key={todo.id} className="flex items-center gap-2 text-sm group bg-white/40 dark:bg-slate-800/40 p-1.5 rounded-lg border border-transparent hover:border-slate-200 dark:hover:border-slate-600 transition-colors">
+                                                <input type="checkbox" className="accent-primary w-4 h-4" checked={todo.completed} onChange={() => setTodos(todos.map(t => t.id === todo.id ? {...t, completed: !t.completed} : t))} />
                                                 <LocalInput value={todo.text} onChange={(val) => setTodos(todos.map(t => t.id === todo.id ? {...t, text: val} : t))} className={`flex-1 bg-transparent border-none p-0 focus:ring-0 ${todo.completed ? 'line-through text-slate-400' : 'dark:text-slate-200'}`} />
-                                                <button onClick={() => setTodos(todos.filter(t => t.id !== todo.id))} className="text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100"><i className="fa-solid fa-xmark"></i></button>
+                                                <button onClick={() => setTodos(todos.filter(t => t.id !== todo.id))} className="text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity"><i className="fa-solid fa-xmark"></i></button>
                                             </div>
                                         ))}
                                     </div>
-                                    <button onClick={() => setTodos([...todos, {id: Date.now(), text: '新規', completed: false}])} className="text-xs text-primary font-bold"><i className="fa-solid fa-plus mr-1"></i>追加</button>
+                                    <button onClick={() => setTodos([...todos, {id: Date.now(), text: '新規', completed: false}])} className="text-xs bg-primary/10 hover:bg-primary/20 text-primary py-1.5 px-3 rounded-xl font-bold w-full transition-colors"><i className="fa-solid fa-plus mr-1"></i>追加</button>
                                 </>
                             )}
                         </div>
 
-                        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-3 flex flex-col flex-shrink-0">
+                        <div className="glass-panel rounded-3xl p-4 flex flex-col flex-shrink-0">
                             <div className="flex justify-between items-center mb-2 cursor-pointer select-none" onClick={(e) => { if(e.target.tagName !== 'BUTTON' && e.target.tagName !== 'I') setIsMemoExpanded(!isMemoExpanded); }}>
                                 <h3 className="font-bold text-slate-700 dark:text-slate-200 text-sm flex items-center">
                                     <i className="fa-regular fa-file-lines text-amber-500 mr-2"></i>同期メモ
                                     <i className={`fa-solid fa-chevron-${isMemoExpanded ? 'down' : 'right'} ml-2 text-xs text-slate-400 transition-transform`}></i>
                                 </h3>
-                                <button onClick={(e) => { e.stopPropagation(); const newM = {id: Date.now(), title: '新規', content: ''}; setMemos([...memos, newM]); setCurrentMemoId(newM.id); setIsMemoExpanded(true); }} className="text-xs text-amber-600"><i className="fa-solid fa-plus"></i></button>
+                                <button onClick={(e) => { e.stopPropagation(); const newM = {id: Date.now(), title: '新規', content: ''}; setMemos([...memos, newM]); setCurrentMemoId(newM.id); setIsMemoExpanded(true); }} className="text-xs text-amber-600 bg-amber-100 dark:bg-amber-900/30 w-6 h-6 rounded-full flex items-center justify-center hover:bg-amber-200 transition-colors"><i className="fa-solid fa-plus"></i></button>
                             </div>
                             
                             {isMemoExpanded && memos.length > 0 && (
-                                <div className="flex gap-1 mb-2">
-                                    <select className="flex-1 text-xs p-1 border rounded dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200" value={currentMemoId || ''} onChange={e => setCurrentMemoId(Number(e.target.value))}>
+                                <div className="flex gap-1 mb-3">
+                                    <select className="flex-1 text-xs p-1.5 border border-white/50 bg-white/50 rounded-xl dark:bg-slate-700/50 dark:border-slate-600 dark:text-slate-200 outline-none focus:ring-1 focus:ring-primary" value={currentMemoId || ''} onChange={e => setCurrentMemoId(Number(e.target.value))}>
                                         {memos.map(m => <option key={m.id} value={m.id}>{m.title}</option>)}
                                     </select>
-                                    <button onClick={() => { if(confirm('削除しますか？')) { const nm = memos.filter(m => m.id !== currentMemoId); setMemos(nm); setCurrentMemoId(nm.length?nm[0].id:null); } }} className="text-rose-500 p-1"><i className="fa-solid fa-trash"></i></button>
+                                    <button onClick={() => { if(confirm('削除しますか？')) { const nm = memos.filter(m => m.id !== currentMemoId); setMemos(nm); setCurrentMemoId(nm.length?nm[0].id:null); } }} className="text-rose-500 p-1.5 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-xl"><i className="fa-solid fa-trash"></i></button>
                                 </div>
                             )}
                             
                             {isMemoExpanded && currentMemoId && (
-                                <div className="flex flex-col gap-1">
-                                    <LocalInput value={activeMemo.title} onChange={(val) => handleMemoUpdate(currentMemoId, 'title', val)} className="text-xs font-bold bg-transparent border-b focus:ring-0 dark:text-slate-200 dark:border-slate-700 p-1" placeholder="タイトル"/>
-                                    <LocalInput isTextarea value={activeMemo.content} onChange={(val) => handleMemoUpdate(currentMemoId, 'content', val)} className="w-full h-[150px] p-2 text-sm border rounded bg-slate-50 dark:bg-slate-900 resize-none dark:text-slate-200 dark:border-slate-700 focus:ring-1 focus:ring-amber-500" placeholder="内容..."/>
+                                <div className="flex flex-col gap-2">
+                                    <LocalInput value={activeMemo.title} onChange={(val) => handleMemoUpdate(currentMemoId, 'title', val)} className="text-xs font-bold bg-transparent border-b border-slate-300/50 focus:border-primary focus:ring-0 dark:text-slate-200 dark:border-slate-600 pb-1 px-1 transition-colors" placeholder="タイトル"/>
+                                    <LocalInput isTextarea value={activeMemo.content} onChange={(val) => handleMemoUpdate(currentMemoId, 'content', val)} className="w-full h-[150px] p-3 text-sm border border-white/50 rounded-xl bg-white/40 dark:bg-slate-900/40 resize-none dark:text-slate-200 dark:border-slate-700 focus:ring-1 focus:ring-amber-500 outline-none shadow-inner" placeholder="内容..."/>
                                 </div>
                             )}
                         </div>
@@ -450,13 +470,12 @@
 
             const TaskList = ({ type, title, icon }) => {
                 const [isExpanded, setIsExpanded] = useState(type !== 'completed');
-                const [sortMode, setSortMode] = useState('manual'); // manual, date
+                const [sortMode, setSortMode] = useState('manual'); 
                 
                 let list = tasks.filter(t => t.type === type && t.status === 'active');
                 if (activeTagFilter) list = list.filter(t => t.tags?.includes(activeTagFilter));
                 if (type === 'completed') list = tasks.filter(t => t.status === 'completed');
 
-                // 新機能: 日付順ソートトグル
                 if (sortMode === 'date') {
                     list.sort((a, b) => {
                         if (!a.dueDate) return 1; if (!b.dueDate) return -1;
@@ -464,7 +483,6 @@
                     });
                 }
 
-                // D&D Handlers
                 const handleDragStart = (e, id) => { e.dataTransfer.setData('taskId', id); e.target.classList.add('opacity-50'); };
                 const handleDrop = (e, targetId) => {
                     e.preventDefault(); const sourceId = e.dataTransfer.getData('taskId');
@@ -476,60 +494,59 @@
 
                 return (
                   <div className="mb-6">
-                    <div className="flex items-center justify-between border-b-2 border-slate-200 dark:border-slate-700 pb-1 mb-3 group">
+                    <div className="flex items-center justify-between border-b-2 border-slate-200/50 dark:border-slate-700/50 pb-2 mb-4 group">
                         <h2 onClick={() => setIsExpanded(!isExpanded)} className="text-lg font-bold text-slate-700 dark:text-slate-200 flex items-center cursor-pointer select-none flex-1">
-                            <i className={`${icon} mr-2`}></i> {title} <span className="text-sm ml-2 text-slate-400">({list.length})</span>
-                            <i className={`fa-solid fa-chevron-${isExpanded ? 'down' : 'right'} ml-2 text-xs text-slate-300 group-hover:text-slate-500`}></i>
+                            <div className="w-8 h-8 rounded-full bg-white/60 dark:bg-slate-800/60 flex items-center justify-center mr-3 shadow-sm border border-white/50 dark:border-slate-700"><i className={`${icon}`}></i></div>
+                            {title} <span className="text-sm ml-2 text-slate-400 bg-slate-100/50 dark:bg-slate-800/50 px-2 py-0.5 rounded-full">{list.length}</span>
+                            <i className={`fa-solid fa-chevron-${isExpanded ? 'down' : 'right'} ml-3 text-xs text-slate-300 group-hover:text-slate-500 transition-transform`}></i>
                         </h2>
                         {type !== 'completed' && (
                             <div className="flex gap-2 items-center">
-                                {/* 新機能: ソート切り替えボタン */}
-                                <button onClick={() => setSortMode(sortMode === 'date' ? 'manual' : 'date')} className={`text-xs px-2 py-1 rounded-full border transition-colors ${sortMode === 'date' ? 'bg-primary/10 text-primary border-primary/30' : 'text-slate-400 border-transparent hover:bg-slate-100 dark:hover:bg-slate-800'}`} title={sortMode === 'date' ? '現在: 日付順 (クリックで手動順)' : '現在: 手動順 (クリックで日付順)'}>
+                                <button onClick={() => setSortMode(sortMode === 'date' ? 'manual' : 'date')} className={`text-xs px-3 py-1.5 rounded-full border transition-all ${sortMode === 'date' ? 'bg-primary text-white border-primary shadow-md shadow-primary/20' : 'text-slate-500 border-white/50 bg-white/50 hover:bg-white dark:bg-slate-800/50 dark:border-slate-700 dark:text-slate-400'}`} title={sortMode === 'date' ? '現在: 日付順 (クリックで手動順)' : '現在: 手動順 (クリックで日付順)'}>
                                     <i className="fa-solid fa-arrow-down-short-wide"></i> 日付
                                 </button>
-                                <button onClick={() => setTasks([...tasks, { id: Date.now().toString(), title: '新規タスク', type, status: 'active', subtasks: [], tags: [], isSecret: false, streak: 0 }])} className="text-xs bg-primary/10 text-primary px-3 py-1 rounded-full hover:bg-primary/20"><i className="fa-solid fa-plus mr-1"></i>追加</button>
+                                <button onClick={() => setTasks([...tasks, { id: Date.now().toString(), title: '新規タスク', type, status: 'active', subtasks: [], tags: [], isSecret: false, streak: 0 }])} className="text-xs bg-primary/10 text-primary px-3 py-1.5 rounded-full hover:bg-primary/20 font-bold transition-colors"><i className="fa-solid fa-plus mr-1"></i>追加</button>
                             </div>
                         )}
                     </div>
                     {isExpanded && (
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                         {list.map((task) => {
                             const progress = task.subtasks?.length ? Math.round((task.subtasks.filter(s => s.status === 'completed').length / task.subtasks.length) * 100) : 0;
                             const isHidden = task.isSecret && !isUnlocked;
-                            // 新機能: 期限カラーの取得
                             const styles = getDueDateStyles(task.dueDate, task.status === 'completed');
 
                             return (
                                 <div key={task.id} draggable={type !== 'completed'} onDragStart={(e) => handleDragStart(e, task.id)} onDragEnd={(e) => e.target.classList.remove('opacity-50')} onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(e, task.id)}
-                                    className={`group flex items-center justify-between p-2 rounded-lg border bg-white dark:bg-slate-800 hover:shadow-md cursor-grab active:cursor-grabbing dark:border-slate-700 transition-colors ${styles.borderClass}`}>
-                                    <div className="flex items-center gap-3 flex-1 overflow-hidden">
-                                        <button onClick={() => toggleTaskStatus(task.id)} className="flex-shrink-0 text-slate-400 hover:text-emerald-500">
-                                            {task.status === 'completed' ? <i className="fa-solid fa-circle-check text-emerald-500 text-xl"></i> : <i className="fa-regular fa-circle text-xl"></i>}
+                                    className={`group flex items-center justify-between p-3 rounded-2xl glass-panel hover:bg-white/90 dark:hover:bg-slate-800/90 cursor-grab active:cursor-grabbing transition-all ${styles.borderClass}`}>
+                                    <div className="flex items-center gap-3 flex-1 overflow-hidden pl-1">
+                                        <button onClick={() => toggleTaskStatus(task.id)} className="flex-shrink-0 text-slate-300 hover:text-emerald-500 transition-colors drop-shadow-sm">
+                                            {task.status === 'completed' ? <i className="fa-solid fa-circle-check text-emerald-500 text-2xl"></i> : <i className="fa-regular fa-circle text-2xl"></i>}
                                         </button>
                                         <div className="flex-1 cursor-pointer truncate" onClick={() => {
                                             if (isHidden) { const p = prompt("PIN:"); if (p === pinCode) { setIsUnlocked(true); setSelectedTaskId(task.id); setCurrentView('taskDetail'); } else if(p!==null) alert("NG"); } 
                                             else { setSelectedTaskId(task.id); setCurrentView('taskDetail'); }
                                         }}>
                                             <div className="flex items-center gap-2">
-                                                <p className={`font-semibold truncate text-sm md:text-base ${task.status === 'completed' ? 'line-through text-slate-400' : ''}`}>{isHidden ? "🔒 秘密" : task.title}</p>
-                                                {!isHidden && task.streak > 0 && <span className="text-[10px] font-bold text-orange-500 bg-orange-100 px-1 rounded flex items-center"><i className="fa-solid fa-fire mr-0.5"></i>{task.streak}</span>}
+                                                <p className={`font-bold truncate text-sm md:text-base ${task.status === 'completed' ? 'line-through text-slate-400 font-normal' : 'text-slate-700 dark:text-slate-100'}`}>{isHidden ? "🔒 秘密のタスク" : task.title}</p>
+                                                {!isHidden && task.streak > 0 && <span className="text-[10px] font-bold text-orange-500 bg-orange-100/80 px-1.5 py-0.5 rounded-md flex items-center border border-orange-200"><i className="fa-solid fa-fire mr-0.5"></i>{task.streak}</span>}
                                             </div>
                                             {!isHidden && (
-                                                <div className="flex text-[11px] gap-3 mt-0.5">
-                                                    {task.dueDate && <span className={`${styles.textClass}`}><i className="fa-regular fa-calendar mr-1"></i>{task.dueDate}</span>}
-                                                    {progress > 0 && <span className="text-slate-500">進捗: {progress}%</span>}
+                                                <div className="flex text-xs gap-3 mt-1 font-medium">
+                                                    {task.dueDate && <span className={`${styles.textClass} bg-white/50 dark:bg-slate-900/50 px-1.5 rounded`}><i className="fa-regular fa-calendar mr-1"></i>{task.dueDate}</span>}
+                                                    {progress > 0 && <span className="text-slate-400 bg-white/50 dark:bg-slate-900/50 px-1.5 rounded">進捗: {progress}%</span>}
                                                 </div>
                                             )}
                                         </div>
                                     </div>
-                                    <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                        {type === 'completed' ? <button onClick={() => { if(confirm('履歴から消去？')) setTasks(tasks.filter(t => t.id !== task.id)); }} className="p-2 text-slate-300 hover:text-rose-500"><i className="fa-solid fa-xmark"></i></button>
-                                        : <button onClick={() => setTasks(tasks.map(t => t.id === task.id ? { ...t, status: 'trash' } : t))} className="p-2 text-slate-300 hover:text-rose-500"><i className="fa-solid fa-trash-can"></i></button>}
+                                    <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity mr-1">
+                                        {type === 'completed' ? <button onClick={() => { if(confirm('履歴から消去？')) setTasks(tasks.filter(t => t.id !== task.id)); }} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100/50 hover:bg-rose-100 text-slate-400 hover:text-rose-500 transition-colors"><i className="fa-solid fa-xmark"></i></button>
+                                        : <button onClick={() => setTasks(tasks.map(t => t.id === task.id ? { ...t, status: 'trash' } : t))} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100/50 hover:bg-rose-100 text-slate-400 hover:text-rose-500 transition-colors"><i className="fa-solid fa-trash-can"></i></button>}
                                     </div>
                                 </div>
                             )
                         })}
-                        {list.length === 0 && <p className="text-slate-400 text-sm italic pl-2">なし</p>}
+                        {list.length === 0 && <p className="text-slate-400 text-sm italic pl-4">この場所には何もないみたいだね🌿</p>}
                         </div>
                     )}
                   </div>
@@ -538,75 +555,86 @@
 
             const Dashboard = () => {
                 const tags = Array.from(new Set(tasks.flatMap(t => t.tags || [])));
-                const [backupName, setBackupName] = useState('backup.json');
+                const [backupName, setBackupName] = useState(backupHistory[0] || 'backup.json');
 
                 const handleBackup = () => {
+                    const finalName = backupName.trim() || 'backup.json';
+                    // ★履歴にない場合は追加して保存
+                    if (!backupHistory.includes(finalName)) {
+                        const newHistory = [finalName, ...backupHistory].slice(0, 10);
+                        setBackupHistory(newHistory);
+                        localStorage.setItem('taskMaster_backupHistory', JSON.stringify(newHistory));
+                    }
+
                     const dataObj = { tasks, schedules, activityLog, userStats, memos, todos, githubSettings };
                     if (githubSettings.token && githubSettings.owner && githubSettings.repo) {
-                        uploadTextToGithub(backupName, JSON.stringify(dataObj, null, 2));
+                        uploadTextToGithub(finalName, JSON.stringify(dataObj, null, 2));
                     } else {
-                        exportAllData(backupName, dataObj);
+                        exportAllData(finalName, dataObj);
                     }
                 };
 
                 return (
                     <div className="flex-1 min-w-0">
-                        <div className="flex justify-between items-center mb-6 flex-wrap gap-2">
-                            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">ダッシュボード</h1>
-                            <div className="flex items-center gap-2">
-                                <LocalInput value={backupName} onChange={setBackupName} placeholder="ファイル名.json" className="px-2 py-1.5 border rounded text-sm dark:bg-slate-800 dark:border-slate-600 dark:text-slate-200 w-32 md:w-48" />
-                                <button onClick={handleBackup} disabled={isGithubLoading} className="px-4 py-2 bg-slate-800 dark:bg-slate-700 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-slate-700 dark:hover:bg-slate-600 transition-colors flex items-center disabled:opacity-50 disabled:cursor-not-allowed">
+                        <div className="flex justify-between items-center mb-8 flex-wrap gap-4">
+                            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-800 dark:text-slate-100 drop-shadow-sm">ダッシュボード</h1>
+                            <div className="flex items-center gap-2 p-1.5 glass-panel rounded-2xl">
+                                {/* ★サジェスト用のdatalistとLocalInputの組み合わせ */}
+                                <LocalInput value={backupName} onChange={setBackupName} list="backup-history" placeholder="ファイル名.json" className="px-3 py-1.5 bg-white/50 border border-white/50 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl text-sm dark:bg-slate-800/50 dark:border-slate-600 dark:text-slate-200 w-36 md:w-48 outline-none transition-all shadow-inner" />
+                                <datalist id="backup-history">
+                                    {backupHistory.map(h => <option key={h} value={h} />)}
+                                </datalist>
+                                <button onClick={handleBackup} disabled={isGithubLoading} className="px-4 py-2 bg-gradient-to-r from-primary to-primary-dark text-white rounded-xl text-sm font-bold shadow-md hover:shadow-lg hover:scale-105 transition-all flex items-center disabled:opacity-50 disabled:cursor-not-allowed">
                                     {isGithubLoading ? <i className="fa-solid fa-spinner fa-spin mr-2"></i> : <i className="fa-brands fa-github mr-2"></i>}保存
                                 </button>
                             </div>
                         </div>
 
-                        {aiMessage && <div className="mb-4 bg-gradient-to-r from-yellow-100 to-orange-100 dark:from-yellow-900/40 border-l-4 border-yellow-400 p-3 rounded text-orange-800 dark:text-orange-200 font-bold animate-bounce"><i className="fa-solid fa-robot mr-2"></i>{aiMessage}</div>}
+                        {aiMessage && <div className="mb-6 bg-gradient-to-r from-emerald-100 to-teal-100 dark:from-emerald-900/40 border-l-4 border-emerald-400 p-4 rounded-2xl text-emerald-800 dark:text-emerald-200 font-bold shadow-sm animate-pulse flex items-center"><div className="w-8 h-8 rounded-full bg-emerald-200/50 flex items-center justify-center mr-3"><i className="fa-solid fa-leaf text-emerald-600"></i></div>{aiMessage}</div>}
                         
                         {tags.length > 0 && (
-                            <div className="mb-4 flex gap-1 flex-wrap">
-                                <button onClick={() => setActiveTagFilter(null)} className={`text-xs px-2 py-1 rounded-full border ${activeTagFilter === null ? 'bg-primary text-white border-primary' : 'bg-white dark:bg-slate-800 text-slate-500 dark:border-slate-700'}`}>すべて</button>
-                                {tags.map(tag => <button key={tag} onClick={() => setActiveTagFilter(tag)} className={`text-xs px-2 py-1 rounded-full border ${activeTagFilter === tag ? 'bg-primary text-white border-primary' : 'bg-white dark:bg-slate-800 text-slate-500 dark:border-slate-700'}`}>#{tag}</button>)}
+                            <div className="mb-6 flex gap-2 flex-wrap">
+                                <button onClick={() => setActiveTagFilter(null)} className={`text-xs px-3 py-1.5 rounded-full font-bold transition-all shadow-sm ${activeTagFilter === null ? 'bg-primary text-white' : 'glass-panel text-slate-500 hover:bg-white/80 dark:hover:bg-slate-700/80'}`}>すべて</button>
+                                {tags.map(tag => <button key={tag} onClick={() => setActiveTagFilter(tag)} className={`text-xs px-3 py-1.5 rounded-full font-bold transition-all shadow-sm ${activeTagFilter === tag ? 'bg-primary text-white' : 'glass-panel text-slate-500 hover:bg-white/80 dark:hover:bg-slate-700/80'}`}>#{tag}</button>)}
                             </div>
                         )}
 
-                        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                            <div className="xl:col-span-2 space-y-2">
-                                <TaskList type="normal" title="メインタスク" icon="fa-solid fa-circle-check text-primary" />
-                                <TaskList type="someday" title="いつかやる" icon="fa-regular fa-clock text-amber-500" />
-                                <TaskList type="routine" title="日課・ルーチン" icon="fa-solid fa-rotate-right text-emerald-500" />
-                                <div className="mt-8 opacity-70"><TaskList type="completed" title="完了履歴" icon="fa-solid fa-clock-rotate-left text-slate-400" /></div>
+                        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 md:gap-8">
+                            <div className="xl:col-span-2 space-y-4">
+                                <TaskList type="normal" title="メインタスク" icon="fa-solid fa-leaf text-primary" />
+                                <TaskList type="someday" title="いつかやる" icon="fa-solid fa-seedling text-amber-500" />
+                                <TaskList type="routine" title="日課・ルーチン" icon="fa-solid fa-droplet text-blue-400" />
+                                <div className="mt-10 opacity-70"><TaskList type="completed" title="完了履歴" icon="fa-solid fa-clock-rotate-left text-slate-400" /></div>
                             </div>
                             <div>
-                                <div className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 sticky top-4">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <h2 className="text-base font-bold flex items-center"><i className="fa-regular fa-calendar text-blue-500 mr-2"></i>スケジュール</h2>
-                                        {/* 新機能: スケジュール日付順ソートボタン */}
+                                <div className="glass-panel rounded-3xl p-5 sticky top-6">
+                                    <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-200/50 dark:border-slate-700/50">
+                                        <h2 className="text-base font-bold flex items-center text-slate-700 dark:text-slate-200"><i className="fa-regular fa-calendar text-blue-500 mr-2"></i>スケジュール</h2>
                                         <button onClick={() => {
                                             const sorted = [...schedules].sort((a, b) => {
                                                 if(!a.date) return 1; if(!b.date) return -1;
                                                 return new Date(a.date) - new Date(b.date);
                                             });
                                             setSchedules(sorted);
-                                        }} className="text-xs text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 px-2 py-1 rounded transition-colors border border-transparent hover:border-blue-200" title="日付順に並び替え">
+                                        }} className="text-xs text-blue-600 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 px-3 py-1.5 rounded-full font-bold transition-colors border border-blue-100 dark:border-blue-800" title="日付順に並び替え">
                                             <i className="fa-solid fa-arrow-down-short-wide"></i> 日付順
                                         </button>
                                     </div>
-                                    <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                                    <div className="space-y-3 max-h-[350px] overflow-y-auto pr-2">
                                         {schedules.map(sc => {
-                                            // 新機能: スケジュールの期限カラー
                                             const styles = getDueDateStyles(sc.date, false);
                                             return (
-                                            <div key={sc.id} className={`flex flex-col gap-1 text-sm border-b pb-2 dark:border-slate-700 ${styles.borderClass}`}>
+                                            <div key={sc.id} className={`flex flex-col gap-1.5 text-sm p-3 bg-white/40 dark:bg-slate-900/40 rounded-2xl border border-white/50 dark:border-slate-700/50 hover:bg-white/60 transition-colors ${styles.borderClass}`}>
                                                 <div className="flex gap-2">
-                                                    <input type="date" className={`border rounded p-1 text-xs dark:bg-slate-700 dark:border-slate-600 ${styles.textClass}`} value={sc.date} onChange={e => setSchedules(schedules.map(s => s.id === sc.id ? {...s, date: e.target.value} : s))}/>
-                                                    <button onClick={() => setSchedules(schedules.filter(s => s.id !== sc.id))} className="text-rose-400 ml-auto hover:text-rose-600"><i className="fa-solid fa-xmark"></i></button>
+                                                    <input type="date" className={`bg-transparent border-b border-slate-300/50 focus:border-primary outline-none px-1 text-xs dark:text-slate-300 ${styles.textClass}`} value={sc.date} onChange={e => setSchedules(schedules.map(s => s.id === sc.id ? {...s, date: e.target.value} : s))}/>
+                                                    <button onClick={() => setSchedules(schedules.filter(s => s.id !== sc.id))} className="text-rose-400 ml-auto hover:text-rose-600 bg-white/50 dark:bg-slate-800/50 w-6 h-6 rounded-full flex items-center justify-center transition-colors"><i className="fa-solid fa-xmark"></i></button>
                                                 </div>
-                                                <LocalInput value={sc.title} onChange={(val) => setSchedules(schedules.map(s => s.id === sc.id ? {...s, title: val} : s))} className="w-full bg-slate-50 dark:bg-slate-900 rounded p-1.5 focus:ring-1 border-none ml-1" placeholder="予定内容"/>
+                                                <LocalInput value={sc.title} onChange={(val) => setSchedules(schedules.map(s => s.id === sc.id ? {...s, title: val} : s))} className="w-full bg-transparent outline-none px-1 font-semibold dark:text-slate-100 placeholder-slate-400" placeholder="予定内容..."/>
                                             </div>
                                         )})}
+                                        {schedules.length === 0 && <p className="text-center text-xs text-slate-400 py-4">予定を追加してね🕊️</p>}
                                     </div>
-                                    <button onClick={() => setSchedules([...schedules, {id: Date.now().toString(), title: '', date: ''}])} className="mt-3 text-xs bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg w-full font-bold dark:bg-blue-900/30 hover:bg-blue-100 transition-colors"><i className="fa-solid fa-plus mr-1"></i>追加</button>
+                                    <button onClick={() => setSchedules([...schedules, {id: Date.now().toString(), title: '', date: ''}])} className="mt-4 text-sm bg-blue-500 hover:bg-blue-600 text-white shadow-md px-4 py-2 rounded-xl w-full font-bold transition-all hover:shadow-lg hover:-translate-y-0.5"><i className="fa-solid fa-plus mr-1"></i>予定を追加</button>
                                 </div>
                             </div>
                         </div>
@@ -630,27 +658,27 @@
 
                 if (isFocusMode) {
                     return (
-                        <div className="fixed inset-0 z-50 bg-slate-950 flex flex-col items-center justify-center p-4">
-                            <button onClick={() => { setIsFocusMode(false); stopBGM(); }} className="absolute top-6 right-6 text-slate-400 hover:text-white bg-slate-800 p-3 rounded-full"><i className="fa-solid fa-xmark text-xl"></i></button>
-                            <h2 className="text-white text-xl mb-2 opacity-50"><i className="fa-solid fa-headphones mr-2"></i>集中モード</h2>
-                            <p className="text-3xl font-bold text-white mb-8 text-center">{task.title}</p>
+                        <div className="fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-xl flex flex-col items-center justify-center p-4">
+                            <button onClick={() => { setIsFocusMode(false); stopBGM(); }} className="absolute top-8 right-8 text-white/50 hover:text-white bg-white/10 hover:bg-white/20 p-4 rounded-full transition-all"><i className="fa-solid fa-xmark text-2xl"></i></button>
+                            <h2 className="text-white/60 text-xl mb-4 font-bold tracking-widest"><i className="fa-solid fa-wind mr-2"></i>Deep Focus</h2>
+                            <p className="text-4xl md:text-5xl font-extrabold text-white mb-10 text-center drop-shadow-lg">{task.title}</p>
                             
-                            <div className="flex gap-2 mb-8 bg-slate-800 p-2 rounded-full">
-                                <button onClick={()=>{setBgmType('none'); stopBGM();}} className={`px-4 py-1 rounded-full text-sm font-bold ${bgmType==='none'?'bg-primary text-white':'text-slate-400'}`}>無音</button>
-                                <button onClick={()=>{setBgmType('rain'); playBGM('rain');}} className={`px-4 py-1 rounded-full text-sm font-bold ${bgmType==='rain'?'bg-primary text-white':'text-slate-400'}`}><i className="fa-solid fa-cloud-rain mr-1"></i>雨</button>
-                                <button onClick={()=>{setBgmType('cafe'); playBGM('cafe');}} className={`px-4 py-1 rounded-full text-sm font-bold ${bgmType==='cafe'?'bg-primary text-white':'text-slate-400'}`}><i className="fa-solid fa-mug-hot mr-1"></i>カフェ</button>
+                            <div className="flex gap-3 mb-10 bg-white/10 p-2 rounded-full backdrop-blur-md border border-white/20 shadow-xl">
+                                <button onClick={()=>{setBgmType('none'); stopBGM();}} className={`px-6 py-2 rounded-full text-sm font-bold transition-all ${bgmType==='none'?'bg-white text-slate-900 shadow-md':'text-white/60 hover:text-white'}`}>無音</button>
+                                <button onClick={()=>{setBgmType('rain'); playBGM('rain');}} className={`px-6 py-2 rounded-full text-sm font-bold transition-all ${bgmType==='rain'?'bg-emerald-400 text-white shadow-md shadow-emerald-400/30':'text-white/60 hover:text-white'}`}><i className="fa-solid fa-cloud-rain mr-2"></i>森の雨</button>
+                                <button onClick={()=>{setBgmType('cafe'); playBGM('cafe');}} className={`px-6 py-2 rounded-full text-sm font-bold transition-all ${bgmType==='cafe'?'bg-amber-400 text-white shadow-md shadow-amber-400/30':'text-white/60 hover:text-white'}`}><i className="fa-solid fa-mug-hot mr-2"></i>カフェ</button>
                             </div>
                             
-                            <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl">
-                                <h3 className="text-slate-400 text-sm font-bold border-b border-slate-800 pb-2 mb-4">残りの細分項目</h3>
-                                <div className="space-y-3 max-h-60 overflow-y-auto">
+                            <div className="w-full max-w-md bg-white/10 border border-white/20 rounded-[2rem] p-8 shadow-2xl backdrop-blur-lg">
+                                <h3 className="text-white/60 text-sm font-bold border-b border-white/10 pb-3 mb-5 flex items-center"><i className="fa-regular fa-compass mr-2"></i>残りのマイルストーン</h3>
+                                <div className="space-y-4 max-h-72 overflow-y-auto pr-2">
                                     {task.subtasks.filter(s => s.status !== 'completed').map(sub => (
-                                        <div key={sub.id} className="flex items-start gap-3 p-3 bg-slate-800 rounded-xl">
-                                            <button onClick={() => { updateTask({ subtasks: task.subtasks.map(s => s.id === sub.id ? {...s, status: 'completed'} : s) }); logActivityAndGainXP(); }} className="mt-0.5 text-slate-500 hover:text-emerald-400"><i className="fa-regular fa-circle text-2xl"></i></button>
-                                            <span className="text-slate-200 flex-1 leading-tight">{sub.title}</span>
+                                        <div key={sub.id} className="flex items-start gap-3 p-4 bg-black/20 rounded-2xl border border-white/5 hover:bg-black/30 transition-colors">
+                                            <button onClick={() => { updateTask({ subtasks: task.subtasks.map(s => s.id === sub.id ? {...s, status: 'completed'} : s) }); logActivityAndGainXP(); }} className="mt-0.5 text-white/40 hover:text-emerald-400 transition-colors"><i className="fa-regular fa-circle text-3xl"></i></button>
+                                            <span className="text-white/90 flex-1 leading-snug font-medium text-lg">{sub.title}</span>
                                         </div>
                                     ))}
-                                    {task.subtasks.filter(s => s.status !== 'completed').length === 0 && <p className="text-emerald-400 font-bold text-center py-4">すべて完了！</p>}
+                                    {task.subtasks.filter(s => s.status !== 'completed').length === 0 && <p className="text-emerald-400 font-bold text-center py-6 text-xl tracking-wide"><i className="fa-solid fa-check-double mr-2"></i>すべて完了！</p>}
                                 </div>
                             </div>
                         </div>
@@ -658,76 +686,75 @@
                 }
 
                 return (
-                    <div className="flex-1 min-w-0 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 md:p-8">
-                        <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100 dark:border-slate-700">
-                            <button onClick={() => setCurrentView('dashboard')} className="text-slate-500 hover:text-primary font-medium"><i className="fa-solid fa-arrow-left mr-2"></i>戻る</button>
-                            <div className="flex gap-2 flex-wrap justify-end">
+                    <div className="flex-1 min-w-0 glass-panel rounded-[2rem] p-6 md:p-10">
+                        <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-200/50 dark:border-slate-700/50">
+                            <button onClick={() => setCurrentView('dashboard')} className="text-slate-500 hover:text-primary font-bold bg-white/50 dark:bg-slate-800/50 px-4 py-2 rounded-xl transition-all"><i className="fa-solid fa-arrow-left mr-2"></i>戻る</button>
+                            <div className="flex gap-3 flex-wrap justify-end">
                                 {githubSettings.token && (
-                                    <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-900 border dark:border-slate-700 rounded p-1">
-                                        <LocalInput value={taskFileName} onChange={setTaskFileName} className="w-24 md:w-32 text-xs p-1 bg-transparent border-none focus:ring-0 dark:text-slate-200" placeholder="ファイル名"/>
+                                    <div className="flex items-center gap-1 bg-white/50 dark:bg-slate-900/50 border border-white/50 dark:border-slate-700 rounded-xl p-1 shadow-inner">
+                                        <LocalInput value={taskFileName} onChange={setTaskFileName} className="w-24 md:w-36 text-sm p-1.5 bg-transparent border-none focus:ring-0 dark:text-slate-200 font-mono" placeholder="ファイル名"/>
                                         <button onClick={() => uploadTextToGithub(`data/${task.title}/${taskFileName}`, JSON.stringify(task, null, 2))} 
                                             disabled={isGithubLoading}
-                                            className="p-1 text-slate-500 hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed" title={`data/${task.title}/ フォルダへ保存`}>
+                                            className="p-2 text-slate-500 hover:text-white hover:bg-primary rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed" title={`data/${task.title}/ フォルダへ保存`}>
                                             {isGithubLoading ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-brands fa-github"></i>}
                                         </button>
                                     </div>
                                 )}
-                                <button onClick={() => updateTask({ isSecret: !task.isSecret })} className={`p-2 rounded ${task.isSecret ? 'text-rose-500 bg-rose-50 dark:bg-rose-900/30' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'}`} title="秘密にする"><i className={`fa-solid ${task.isSecret ? 'fa-lock' : 'fa-lock-open'}`}></i></button>
-                                <button onClick={() => setIsFocusMode(true)} className="px-4 py-2 bg-primary/10 text-primary rounded hover:bg-primary/20 font-bold text-sm"><i className="fa-solid fa-expand mr-2"></i>集中</button>
+                                <button onClick={() => updateTask({ isSecret: !task.isSecret })} className={`p-3 rounded-xl transition-all shadow-sm ${task.isSecret ? 'text-rose-500 bg-rose-100 border border-rose-200 dark:bg-rose-900/30' : 'text-slate-500 bg-white/50 hover:bg-white border border-white/50 dark:bg-slate-800/50 dark:hover:bg-slate-800'}`} title="秘密にする"><i className={`fa-solid ${task.isSecret ? 'fa-lock' : 'fa-lock-open'}`}></i></button>
+                                <button onClick={() => setIsFocusMode(true)} className="px-5 py-2.5 bg-gradient-to-r from-primary to-primary-dark text-white rounded-xl shadow-md hover:shadow-lg hover:scale-105 font-bold text-sm transition-all"><i className="fa-solid fa-expand mr-2"></i>集中モード</button>
                             </div>
                         </div>
 
-                        <LocalInput value={task.title} onChange={(val) => updateTask({ title: val })} className="w-full text-2xl md:text-3xl font-extrabold bg-transparent border-none focus:ring-0 mb-4 p-0 dark:text-slate-100" placeholder="タスク名を入力..." />
+                        <LocalInput value={task.title} onChange={(val) => updateTask({ title: val })} className="w-full text-3xl md:text-4xl font-extrabold bg-transparent border-none focus:ring-0 mb-6 p-0 dark:text-slate-100 text-slate-800 drop-shadow-sm placeholder-slate-300" placeholder="壮大な目標を入力..." />
 
-                        {/* 締切とタグ (タスク詳細内でも期限の文字色を強調) */}
-                        <div className="flex flex-wrap items-center gap-4 mb-6 bg-slate-50 dark:bg-slate-900 p-3 rounded-lg border dark:border-slate-700">
+                        <div className="flex flex-wrap items-center gap-4 mb-8 bg-white/40 dark:bg-slate-900/40 p-4 rounded-2xl border border-white/60 dark:border-slate-700 shadow-sm">
                             <div className="flex items-center">
-                                <i className={`fa-regular fa-calendar mr-2 ${getDueDateStyles(task.dueDate, false).textClass}`}></i>
+                                <i className={`fa-regular fa-calendar mr-2 text-lg ${getDueDateStyles(task.dueDate, false).textClass}`}></i>
                                 <span className={`text-sm font-bold mr-2 ${getDueDateStyles(task.dueDate, false).textClass}`}>締め切り:</span>
-                                <input type="date" className={`bg-white dark:bg-slate-800 border rounded px-2 py-1 text-sm dark:border-slate-600 cursor-pointer ${getDueDateStyles(task.dueDate, false).textClass}`} value={task.dueDate || ''} onChange={(e) => updateTask({ dueDate: e.target.value })}/>
+                                <input type="date" className={`bg-white/80 dark:bg-slate-800/80 border-none rounded-xl px-3 py-1.5 text-sm cursor-pointer shadow-inner focus:ring-2 focus:ring-primary ${getDueDateStyles(task.dueDate, false).textClass}`} value={task.dueDate || ''} onChange={(e) => updateTask({ dueDate: e.target.value })}/>
                             </div>
-                            <div className="flex items-center gap-2 flex-wrap border-l pl-4 dark:border-slate-700">
-                                <i className="fa-solid fa-tag text-slate-400"></i>
+                            <div className="flex items-center gap-2 flex-wrap border-l border-slate-300/50 pl-4 dark:border-slate-700">
+                                <i className="fa-solid fa-tag text-slate-400 text-lg"></i>
                                 {task.tags?.map(tag => (
-                                    <span key={tag} className="bg-primary/10 text-primary px-2 py-1 rounded-full text-xs flex items-center">
-                                        #{tag} <button onClick={() => updateTask({ tags: task.tags.filter(t => t !== tag) })} className="ml-1 opacity-50 hover:opacity-100"><i className="fa-solid fa-xmark"></i></button>
+                                    <span key={tag} className="bg-primary text-white shadow-sm px-3 py-1 rounded-full text-xs font-bold flex items-center">
+                                        #{tag} <button onClick={() => updateTask({ tags: task.tags.filter(t => t !== tag) })} className="ml-1.5 opacity-70 hover:opacity-100"><i className="fa-solid fa-xmark"></i></button>
                                     </span>
                                 ))}
                                 <input type="text" value={tagInput} onChange={e => setTagInput(e.target.value)}
                                     onKeyDown={(e) => { if(e.key === 'Enter' && tagInput.trim()) { updateTask({ tags: [...new Set([...(task.tags||[]), tagInput.trim().replace(/^#/,'')])]}); setTagInput(''); } }}
-                                    placeholder="タグ追加(Enter)" className="text-xs bg-white dark:bg-slate-800 border rounded px-2 py-1 w-28 dark:border-slate-600 dark:text-slate-200" />
+                                    placeholder="タグ追加(Enter)" className="text-xs bg-white/60 dark:bg-slate-800/60 border-none rounded-full px-3 py-1.5 w-32 shadow-inner focus:ring-2 focus:ring-primary dark:text-slate-200 outline-none" />
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-4 mb-6">
-                            <div className="flex-1">
-                                <div className="flex justify-between text-xs mb-1 font-bold text-slate-500"><span>進捗状況</span><span>{progress}%</span></div>
-                                <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2"><div className="bg-emerald-500 h-2 rounded-full transition-all" style={{ width: `${progress}%` }}></div></div>
+                        <div className="flex items-center gap-5 mb-8">
+                            <div className="flex-1 bg-white/50 dark:bg-slate-800/50 p-3 rounded-2xl border border-white/50 dark:border-slate-700 shadow-sm">
+                                <div className="flex justify-between text-xs mb-1.5 font-bold text-slate-500 px-1"><span>達成度</span><span className="text-primary">{progress}%</span></div>
+                                <div className="w-full bg-slate-200/50 dark:bg-slate-900/50 rounded-full h-2.5 overflow-hidden"><div className="bg-gradient-to-r from-emerald-400 to-teal-400 h-full rounded-full transition-all duration-700 ease-out" style={{ width: `${progress}%` }}></div></div>
                             </div>
-                            <button onClick={() => generateAiMilestones(task)} disabled={isAiLoading} className="px-3 py-1.5 border border-primary text-primary rounded hover:bg-primary/10 text-xs font-bold transition-colors">
-                                {isAiLoading ? <i className="fa-solid fa-rotate-right animate-spin"></i> : <><i className="fa-solid fa-robot mr-1"></i> AIマイルストーン</>}
+                            <button onClick={() => generateAiMilestones(task)} disabled={isAiLoading} className="px-4 py-3 bg-white hover:bg-emerald-50 text-emerald-600 rounded-2xl shadow-sm border border-emerald-100 hover:border-emerald-300 text-xs font-bold transition-all flex flex-col items-center justify-center min-w-[120px]">
+                                {isAiLoading ? <i className="fa-solid fa-seedling animate-bounce text-lg mb-1"></i> : <><i className="fa-solid fa-wand-magic-sparkles text-lg mb-1"></i> AI細分化</>}
                             </button>
                         </div>
 
-                        <h3 className="font-bold mb-3 text-slate-700 dark:text-slate-200"><i className="fa-regular fa-square-check text-emerald-500 mr-2"></i>細分項目</h3>
-                        <div className="space-y-2 mb-8">
+                        <h3 className="font-bold text-lg mb-4 text-slate-700 dark:text-slate-200 flex items-center"><i className="fa-solid fa-list-check text-primary mr-2"></i>マイルストーン (細分化)</h3>
+                        <div className="space-y-3 mb-10">
                             {task.subtasks.map((sub) => (
-                                <div key={sub.id} className="flex items-start gap-2 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg group border dark:border-slate-700">
-                                    <button onClick={() => updateTask({ subtasks: task.subtasks.map(s => s.id === sub.id ? {...s, status: s.status==='active'?'completed':'active'} : s) })} className="mt-1 text-slate-400 hover:text-emerald-500">
-                                        {sub.status === 'completed' ? <i className="fa-solid fa-circle-check text-emerald-500"></i> : <i className="fa-regular fa-circle"></i>}
+                                <div key={sub.id} className="flex items-start gap-3 p-4 bg-white/60 dark:bg-slate-900/60 rounded-2xl group border border-white/60 dark:border-slate-700 shadow-sm hover:shadow-md transition-all">
+                                    <button onClick={() => updateTask({ subtasks: task.subtasks.map(s => s.id === sub.id ? {...s, status: s.status==='active'?'completed':'active'} : s) })} className="mt-1 text-slate-300 hover:text-emerald-500 transition-colors drop-shadow-sm">
+                                        {sub.status === 'completed' ? <i className="fa-solid fa-circle-check text-emerald-500 text-2xl"></i> : <i className="fa-regular fa-circle text-2xl"></i>}
                                     </button>
                                     <div className="flex-1 flex flex-col gap-1">
-                                        <LocalInput value={sub.title} onChange={(val) => updateTask({ subtasks: task.subtasks.map(s => s.id === sub.id ? {...s, title: val} : s) })} className={`w-full bg-transparent border-none p-0 focus:ring-0 ${sub.status === 'completed' ? 'line-through text-slate-400' : 'font-semibold dark:text-slate-200'}`} placeholder="項目名..." />
-                                        <LocalInput value={sub.memo||''} onChange={(val) => updateTask({ subtasks: task.subtasks.map(s => s.id === sub.id ? {...s, memo: val} : s) })} className="w-full bg-transparent border-none p-0 focus:ring-0 text-xs text-slate-500" placeholder="メモ..." />
+                                        <LocalInput value={sub.title} onChange={(val) => updateTask({ subtasks: task.subtasks.map(s => s.id === sub.id ? {...s, title: val} : s) })} className={`w-full bg-transparent border-none p-0 focus:ring-0 text-base ${sub.status === 'completed' ? 'line-through text-slate-400' : 'font-bold text-slate-700 dark:text-slate-200'}`} placeholder="具体的なアクション..." />
+                                        <LocalInput value={sub.memo||''} onChange={(val) => updateTask({ subtasks: task.subtasks.map(s => s.id === sub.id ? {...s, memo: val} : s) })} className="w-full bg-transparent border-none p-0 focus:ring-0 text-xs text-slate-500 font-medium" placeholder="補足メモ..." />
                                     </div>
-                                    <button onClick={() => updateTask({ subtasks: task.subtasks.filter(s => s.id !== sub.id) })} className="opacity-0 group-hover:opacity-100 text-rose-400 p-1 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded"><i className="fa-solid fa-xmark"></i></button>
+                                    <button onClick={() => updateTask({ subtasks: task.subtasks.filter(s => s.id !== sub.id) })} className="opacity-0 group-hover:opacity-100 text-rose-400 w-8 h-8 rounded-full hover:bg-rose-100 dark:hover:bg-rose-900/30 flex items-center justify-center transition-all"><i className="fa-solid fa-xmark"></i></button>
                                 </div>
                             ))}
-                            <button onClick={() => updateTask({ subtasks: [...task.subtasks, { id: Date.now().toString(), title: '', status: 'active' }] })} className="w-full py-2 border border-dashed rounded text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 dark:border-slate-600 text-sm font-bold"><i className="fa-solid fa-plus mr-1"></i>追加</button>
+                            <button onClick={() => updateTask({ subtasks: [...task.subtasks, { id: Date.now().toString(), title: '', status: 'active' }] })} className="w-full py-3 border-2 border-dashed border-primary/30 rounded-2xl text-primary hover:bg-primary/5 dark:hover:bg-primary/10 text-sm font-bold transition-colors flex items-center justify-center"><i className="fa-solid fa-plus mr-2"></i>ステップを追加</button>
                         </div>
 
-                        <h3 className="font-bold mb-2 text-slate-700 dark:text-slate-200"><i className="fa-regular fa-file-lines text-amber-500 mr-2"></i>タスク詳細メモ</h3>
-                        <LocalInput isTextarea value={task.memo||''} onChange={(val) => updateTask({ memo: val })} className="w-full h-40 p-3 bg-slate-50 dark:bg-slate-900 border rounded-lg text-sm resize-y focus:ring-1 focus:ring-primary dark:border-slate-700 dark:text-slate-200" placeholder="詳細や参考リンクなどを記録..." />
+                        <h3 className="font-bold text-lg mb-3 text-slate-700 dark:text-slate-200 flex items-center"><i className="fa-regular fa-file-lines text-amber-500 mr-2"></i>詳細ノート</h3>
+                        <LocalInput isTextarea value={task.memo||''} onChange={(val) => updateTask({ memo: val })} className="w-full h-48 p-4 bg-white/50 dark:bg-slate-900/50 border border-white/60 dark:border-slate-700 rounded-2xl text-sm resize-y focus:ring-2 focus:ring-primary dark:text-slate-200 shadow-inner outline-none" placeholder="このタスクに関する詳しい情報や参考リンク、思いついたアイデアを自由に書き込んでね🌿" />
                     </div>
                 );
             };
@@ -736,34 +763,34 @@
                 const totalCompleted = tasks.filter(t => t.status === 'completed').length;
                 const completedRoutines = tasks.filter(t => t.type === 'routine' && t.status === 'completed').length;
                 return (
-                    <div className="flex-1 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 md:p-8">
-                        <h1 className="text-2xl font-bold mb-6"><i className="fa-solid fa-chart-line text-primary mr-3"></i>分析ダッシュボード</h1>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                            <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 text-center bg-slate-50 dark:bg-slate-900">
-                                <p className="text-xs text-slate-500 font-bold mb-1">現在のレベル</p><p className="text-3xl font-extrabold text-primary">{userStats.level}</p>
+                    <div className="flex-1 glass-panel rounded-[2rem] p-6 md:p-10">
+                        <h1 className="text-3xl font-extrabold mb-8 text-slate-800 dark:text-slate-100"><i className="fa-solid fa-chart-line text-primary mr-3"></i>成長の記録</h1>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-10">
+                            <div className="p-5 rounded-3xl bg-white/60 dark:bg-slate-800/60 border border-white/50 dark:border-slate-700 text-center shadow-sm hover:shadow-md transition-shadow">
+                                <p className="text-xs text-slate-500 font-bold mb-2">現在のレベル</p><p className="text-4xl font-black text-primary">{userStats.level}</p>
                             </div>
-                            <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 text-center bg-slate-50 dark:bg-slate-900">
-                                <p className="text-xs text-slate-500 font-bold mb-1">総経験値 (XP)</p><p className="text-3xl font-extrabold text-yellow-500">{userStats.xp + ((userStats.level-1)*50)}</p>
+                            <div className="p-5 rounded-3xl bg-white/60 dark:bg-slate-800/60 border border-white/50 dark:border-slate-700 text-center shadow-sm hover:shadow-md transition-shadow">
+                                <p className="text-xs text-slate-500 font-bold mb-2">総経験値 (XP)</p><p className="text-4xl font-black text-yellow-500">{userStats.xp + ((userStats.level-1)*50)}</p>
                             </div>
-                            <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 text-center bg-slate-50 dark:bg-slate-900">
-                                <p className="text-xs text-slate-500 font-bold mb-1">完了タスク総数</p><p className="text-3xl font-extrabold text-emerald-500">{totalCompleted}</p>
+                            <div className="p-5 rounded-3xl bg-white/60 dark:bg-slate-800/60 border border-white/50 dark:border-slate-700 text-center shadow-sm hover:shadow-md transition-shadow">
+                                <p className="text-xs text-slate-500 font-bold mb-2">完了タスク総数</p><p className="text-4xl font-black text-emerald-500">{totalCompleted}</p>
                             </div>
-                            <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 text-center bg-slate-50 dark:bg-slate-900">
-                                <p className="text-xs text-slate-500 font-bold mb-1">本日の日課達成</p><p className="text-3xl font-extrabold text-rose-500">{completedRoutines}</p>
+                            <div className="p-5 rounded-3xl bg-white/60 dark:bg-slate-800/60 border border-white/50 dark:border-slate-700 text-center shadow-sm hover:shadow-md transition-shadow">
+                                <p className="text-xs text-slate-500 font-bold mb-2">本日の日課達成</p><p className="text-4xl font-black text-rose-500">{completedRoutines}</p>
                             </div>
                         </div>
 
-                        <h3 className="font-bold text-slate-700 dark:text-slate-200 mb-4"><i className="fa-solid fa-fire text-orange-500 mr-2"></i>アクティビティヒートマップ</h3>
-                        <div className="flex flex-wrap gap-1 p-4 border rounded-xl bg-slate-50 dark:bg-slate-900 dark:border-slate-700">
+                        <h3 className="font-bold text-lg text-slate-700 dark:text-slate-200 mb-4 flex items-center"><i className="fa-solid fa-seedling text-emerald-500 mr-2"></i>アクティビティ・ガーデン</h3>
+                        <div className="flex flex-wrap gap-1.5 p-5 border border-white/50 rounded-3xl bg-white/40 dark:bg-slate-900/40 dark:border-slate-700 shadow-inner">
                             {[...Array(60)].map((_, i) => {
                                 const d = new Date(); d.setDate(d.getDate() - (59 - i));
                                 const dateStr = d.toISOString().split('T')[0];
                                 const count = activityLog[dateStr] || 0;
-                                let color = 'bg-slate-200 dark:bg-slate-700';
-                                if (count > 0) color = 'bg-primary opacity-40';
-                                if (count > 2) color = 'bg-primary opacity-70';
-                                if (count > 5) color = 'bg-primary opacity-100';
-                                return <div key={i} title={`${dateStr}: ${count}件`} className={`w-3 h-3 md:w-4 md:h-4 rounded-sm ${color}`}></div>
+                                let color = 'bg-white/50 dark:bg-slate-800/50';
+                                if (count > 0) color = 'bg-emerald-300 dark:bg-emerald-700';
+                                if (count > 2) color = 'bg-emerald-400 dark:bg-emerald-600';
+                                if (count > 5) color = 'bg-emerald-500 dark:bg-emerald-500';
+                                return <div key={i} title={`${dateStr}: ${count}件`} className={`w-3.5 h-3.5 md:w-5 md:h-5 rounded-md ${color} transition-colors hover:scale-125 cursor-pointer`}></div>
                             })}
                         </div>
                     </div>
@@ -772,10 +799,10 @@
 
             const GithubView = () => {
                 if(!githubSettings.token) return (
-                    <div className="flex-1 p-8 text-center bg-white dark:bg-slate-800 rounded-2xl border dark:border-slate-700">
-                        <i className="fa-brands fa-github text-6xl text-slate-300 mb-4"></i>
-                        <p className="font-bold mb-4">GitHub連携が未設定です。</p>
-                        <button onClick={() => setCurrentView('settings')} className="bg-primary text-white px-4 py-2 rounded">設定画面へ</button>
+                    <div className="flex-1 p-10 text-center glass-panel rounded-[2rem]">
+                        <i className="fa-brands fa-github text-7xl text-slate-300 mb-6 drop-shadow-md"></i>
+                        <p className="font-bold mb-6 text-lg">クラウドとつながる魔法の鍵（GitHub設定）がありません☁️</p>
+                        <button onClick={() => setCurrentView('settings')} className="bg-gradient-to-r from-primary to-primary-dark text-white px-6 py-3 rounded-xl font-bold shadow-md hover:shadow-lg transition-all">設定画面へ行く</button>
                     </div>
                 );
 
@@ -787,43 +814,43 @@
                 };
 
                 return (
-                    <div className="flex-1 flex flex-col min-w-0 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 md:p-8">
-                        <div className="flex items-center justify-between mb-6">
-                            <h1 className="text-2xl font-bold"><i className="fa-brands fa-github mr-3 text-slate-600 dark:text-slate-300"></i>クラウドファイル</h1>
-                            <div className="flex gap-2">
-                                <button onClick={createGithubFolder} className="px-3 py-1.5 bg-slate-100 dark:bg-slate-700 rounded text-sm font-bold hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"><i className="fa-solid fa-folder-plus mr-1"></i>新規フォルダ</button>
-                                <button onClick={() => fetchGithubPath(githubPath)} className="px-3 py-1.5 bg-slate-100 dark:bg-slate-700 rounded text-sm font-bold hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"><i className="fa-solid fa-rotate-right"></i></button>
+                    <div className="flex-1 flex flex-col min-w-0 glass-panel rounded-[2rem] p-6 md:p-10">
+                        <div className="flex items-center justify-between mb-8">
+                            <h1 className="text-3xl font-extrabold text-slate-800 dark:text-slate-100"><i className="fa-solid fa-cloud text-primary mr-3"></i>クラウドストレージ</h1>
+                            <div className="flex gap-3">
+                                <button onClick={createGithubFolder} className="px-4 py-2 bg-white/60 dark:bg-slate-700/60 rounded-xl text-sm font-bold hover:bg-white dark:hover:bg-slate-600 shadow-sm transition-all"><i className="fa-solid fa-folder-plus mr-2"></i>新規フォルダ</button>
+                                <button onClick={() => fetchGithubPath(githubPath)} className="w-10 h-10 flex items-center justify-center bg-white/60 dark:bg-slate-700/60 rounded-xl font-bold hover:bg-white dark:hover:bg-slate-600 shadow-sm transition-all"><i className="fa-solid fa-rotate-right"></i></button>
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-2 mb-4 p-2 bg-slate-50 dark:bg-slate-900 rounded border dark:border-slate-700 text-sm font-mono overflow-x-auto">
-                            <button onClick={() => fetchGithubPath('')} className="text-primary hover:underline"><i className="fa-solid fa-house"></i></button>
+                        <div className="flex items-center gap-2 mb-6 p-3 bg-white/50 dark:bg-slate-900/50 rounded-xl border border-white/60 dark:border-slate-700 text-sm font-mono overflow-x-auto shadow-inner">
+                            <button onClick={() => fetchGithubPath('')} className="text-primary hover:text-primary-dark font-bold px-2 py-1 bg-white/50 rounded hover:shadow-sm"><i className="fa-solid fa-house"></i></button>
                             {githubPath.split('/').filter(Boolean).map((p, i, arr) => (
                                 <React.Fragment key={p}>
-                                    <span className="text-slate-400">/</span>
-                                    <button onClick={() => fetchGithubPath(arr.slice(0, i+1).join('/'))} className="text-primary hover:underline">{p}</button>
+                                    <span className="text-slate-400 font-bold">/</span>
+                                    <button onClick={() => fetchGithubPath(arr.slice(0, i+1).join('/'))} className="text-primary hover:text-primary-dark font-bold px-2 py-1 bg-white/50 rounded hover:shadow-sm transition-all">{p}</button>
                                 </React.Fragment>
                             ))}
                         </div>
 
                         <div 
-                            className="flex-1 border-2 border-dashed border-slate-200 dark:border-slate-600 rounded-xl p-4 overflow-y-auto transition-colors bg-slate-50/50 dark:bg-slate-900/50"
+                            className="flex-1 border-2 border-dashed border-primary/30 rounded-3xl p-6 overflow-y-auto transition-all bg-white/30 dark:bg-slate-900/30 hover:bg-white/50 dark:hover:bg-slate-900/50"
                             onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('dragging'); }}
                             onDragLeave={(e) => e.currentTarget.classList.remove('dragging')}
                             onDrop={handleDropUpload}
                         >
-                            {isGithubLoading ? <p className="text-center text-slate-400 py-10"><i className="fa-solid fa-circle-notch fa-spin text-2xl"></i></p> : (
-                                <div className="space-y-1">
-                                    {githubFiles.length === 0 && <p className="text-center text-slate-400 py-10 text-sm">ファイルはありません<br/>ここにドラッグ＆ドロップでアップロードできます</p>}
+                            {isGithubLoading ? <div className="h-full flex flex-col items-center justify-center text-primary/70"><i className="fa-solid fa-fan fa-spin text-4xl mb-4"></i><p className="font-bold tracking-widest">風の力で通信中...</p></div> : (
+                                <div className="space-y-2">
+                                    {githubFiles.length === 0 && <div className="h-full flex flex-col items-center justify-center text-slate-400 py-16"><i className="fa-regular fa-file text-5xl mb-4 opacity-50"></i><p className="text-sm font-bold">ファイルはありません<br/>ここにドラッグ＆ドロップで保存できるよ🌿</p></div>}
                                     {githubFiles.map(file => (
-                                        <div key={file.sha} className="flex justify-between items-center p-2 hover:bg-white dark:hover:bg-slate-800 rounded border border-transparent hover:border-slate-200 dark:hover:border-slate-700 group">
-                                            <div className="flex items-center gap-3 overflow-hidden cursor-pointer flex-1" onClick={() => file.type === 'dir' ? fetchGithubPath(file.path) : downloadGithubFile(file)}>
-                                                {file.type === 'dir' ? <i className="fa-solid fa-folder text-amber-400 text-lg"></i> : <i className="fa-regular fa-file-lines text-slate-400 text-lg"></i>}
-                                                <span className="text-sm font-semibold truncate">{file.name}</span>
+                                        <div key={file.sha} className="flex justify-between items-center p-3 hover:bg-white/80 dark:hover:bg-slate-800/80 rounded-2xl border border-transparent hover:border-white/50 dark:hover:border-slate-700 group transition-all shadow-sm">
+                                            <div className="flex items-center gap-4 overflow-hidden cursor-pointer flex-1 pl-2" onClick={() => file.type === 'dir' ? fetchGithubPath(file.path) : downloadGithubFile(file)}>
+                                                {file.type === 'dir' ? <i className="fa-solid fa-folder text-amber-400 text-2xl drop-shadow-sm"></i> : <i className="fa-regular fa-file-lines text-slate-400 text-2xl drop-shadow-sm"></i>}
+                                                <span className="text-base font-bold text-slate-700 dark:text-slate-200 truncate">{file.name}</span>
                                             </div>
-                                            <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                                {file.type === 'file' && <button onClick={() => downloadGithubFile(file)} className="text-slate-400 hover:text-primary p-2" title="ダウンロード"><i className="fa-solid fa-download"></i></button>}
-                                                <button onClick={() => deleteGithubFile(file)} className="text-slate-400 hover:text-rose-500 p-2" title="削除"><i className="fa-solid fa-trash-can"></i></button>
+                                            <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity pr-2">
+                                                {file.type === 'file' && <button onClick={() => downloadGithubFile(file)} className="text-slate-400 hover:text-primary w-10 h-10 flex items-center justify-center rounded-full hover:bg-blue-50 transition-colors" title="ダウンロード"><i className="fa-solid fa-download"></i></button>}
+                                                <button onClick={() => deleteGithubFile(file)} className="text-slate-400 hover:text-rose-500 w-10 h-10 flex items-center justify-center rounded-full hover:bg-rose-50 transition-colors" title="削除"><i className="fa-solid fa-trash-can"></i></button>
                                             </div>
                                         </div>
                                     ))}
@@ -835,20 +862,22 @@
             };
 
             const TrashView = () => (
-                <div className="flex-1 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 md:p-8">
-                    <h1 className="text-2xl font-bold mb-6"><i className="fa-solid fa-trash-can text-rose-500 mr-3"></i>ごみ箱</h1>
-                    {tasks.filter(t => t.status === 'trash').length === 0 ? <p className="text-center text-slate-400 my-10">ごみ箱は空です</p> : (
-                        <div className="space-y-2">
+                <div className="flex-1 glass-panel rounded-[2rem] p-6 md:p-10">
+                    <h1 className="text-3xl font-extrabold mb-8 text-slate-800 dark:text-slate-100"><i className="fa-solid fa-trash-can text-rose-500 mr-3"></i>ごみ箱</h1>
+                    {tasks.filter(t => t.status === 'trash').length === 0 ? <p className="text-center text-slate-400 py-20 font-bold">ごみ箱は空っぽだよ✨</p> : (
+                        <div className="space-y-3">
                             {tasks.filter(t => t.status === 'trash').map(task => (
-                                <div key={task.id} className="flex justify-between items-center p-3 border dark:border-slate-700 rounded bg-slate-50 dark:bg-slate-900">
-                                    <span className="text-slate-500 line-through truncate">{task.title}</span>
+                                <div key={task.id} className="flex justify-between items-center p-4 bg-white/50 dark:bg-slate-900/50 rounded-2xl border border-white/60 dark:border-slate-700 shadow-sm">
+                                    <span className="text-slate-500 line-through truncate font-medium pl-2">{task.title}</span>
                                     <div className="flex gap-2 ml-4 flex-shrink-0">
-                                        <button onClick={() => setTasks(tasks.map(t => t.id === task.id ? {...t, status: 'active'} : t))} className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded text-xs dark:bg-emerald-900/30 dark:text-emerald-400"><i className="fa-solid fa-rotate-left mr-1"></i>復元</button>
-                                        <button onClick={() => setTasks(tasks.filter(t => t.id !== task.id))} className="px-3 py-1 bg-rose-100 text-rose-700 rounded text-xs dark:bg-rose-900/30 dark:text-rose-400">完全に削除</button>
+                                        <button onClick={() => setTasks(tasks.map(t => t.id === task.id ? {...t, status: 'active'} : t))} className="px-4 py-2 bg-emerald-100 text-emerald-700 rounded-xl text-xs font-bold hover:bg-emerald-200 transition-colors"><i className="fa-solid fa-rotate-left mr-1"></i>自然に還す(復元)</button>
+                                        <button onClick={() => setTasks(tasks.filter(t => t.id !== task.id))} className="px-4 py-2 bg-rose-100 text-rose-700 rounded-xl text-xs font-bold hover:bg-rose-200 transition-colors">完全に消去</button>
                                     </div>
                                 </div>
                             ))}
-                            <button onClick={() => setTasks(tasks.filter(t => t.status !== 'trash'))} className="mt-6 px-4 py-2 bg-rose-500 text-white rounded font-bold text-sm w-full md:w-auto md:float-right">ごみ箱を空にする</button>
+                            <div className="mt-8 flex justify-end">
+                                <button onClick={() => setTasks(tasks.filter(t => t.status !== 'trash'))} className="px-6 py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-bold text-sm shadow-md transition-all">ごみ箱を空にする</button>
+                            </div>
                         </div>
                     )}
                 </div>
@@ -866,54 +895,58 @@
                 }, [currentView]);
 
                 return (
-                    <div className="flex-1 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 md:p-8 space-y-6">
-                        <h1 className="text-2xl font-bold mb-6"><i className="fa-solid fa-gear text-slate-500 mr-3"></i>設定・連携</h1>
+                    <div className="flex-1 glass-panel rounded-[2rem] p-6 md:p-10 space-y-8">
+                        <h1 className="text-3xl font-extrabold mb-6 text-slate-800 dark:text-slate-100"><i className="fa-solid fa-gear text-slate-500 mr-3"></i>設定・カスタマイズ</h1>
                         
-                        <div className="p-4 border rounded-xl bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800/50">
-                            <h3 className="font-bold mb-2 flex items-center text-amber-700 dark:text-amber-500"><i className="fa-solid fa-file-import mr-2"></i>外部データ (JSON) インポート</h3>
-                            <p className="text-xs text-slate-600 dark:text-slate-400 mb-3">hub_backup.json等のバックアップファイルからデータを読み込みます。</p>
-                            <input type="file" accept=".json" onChange={importJSONData} className="text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-amber-100 file:text-amber-700 hover:file:bg-amber-200 cursor-pointer"/>
+                        <div className="p-6 rounded-3xl bg-amber-50/80 dark:bg-amber-900/20 border border-amber-200/50 dark:border-amber-800/50 shadow-sm">
+                            <h3 className="font-bold mb-2 flex items-center text-amber-700 dark:text-amber-500 text-lg"><i className="fa-solid fa-file-import mr-2"></i>データのインポート (お引越し)</h3>
+                            <p className="text-sm text-amber-600/80 dark:text-amber-400/80 mb-4 font-medium">以前のバックアップファイル (JSON) を読み込んで、世界を復元します🌿</p>
+                            <input type="file" accept=".json" onChange={importJSONData} className="text-sm file:mr-4 file:py-2.5 file:px-5 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-amber-100 file:text-amber-700 hover:file:bg-amber-200 cursor-pointer transition-colors"/>
                         </div>
 
-                        <div className="p-4 border rounded-xl bg-slate-50 dark:bg-slate-900 dark:border-slate-700">
-                            <h3 className="font-bold mb-3 flex items-center"><i className="fa-solid fa-palette text-primary mr-2"></i>カスタムテーマカラー</h3>
-                            <div className="flex gap-3">
-                                {[{c:'indigo', hex:'#6366f1'}, {c:'emerald', hex:'#10b981'}, {c:'rose', hex:'#f43f5e'}, {c:'amber', hex:'#f59e0b'}, {c:'slate', hex:'#64748b'}].map(color => (
+                        <div className="p-6 rounded-3xl bg-white/50 dark:bg-slate-800/50 border border-white/60 dark:border-slate-700 shadow-sm">
+                            <h3 className="font-bold mb-4 flex items-center text-lg"><i className="fa-solid fa-palette text-primary mr-2"></i>自然を感じるテーマカラー</h3>
+                            <div className="flex flex-wrap gap-4">
+                                {[{c:'ocean', hex:'#0ea5e9', name:'海 (Ocean)'}, {c:'forest', hex:'#10b981', name:'森 (Forest)'}, {c:'sky', hex:'#6366f1', name:'空 (Sky)'}, {c:'sunset', hex:'#f97316', name:'夕陽 (Sunset)'}, {c:'earth', hex:'#84cc16', name:'大地 (Earth)'}].map(color => (
                                     <button key={color.c} onClick={() => { setThemeColor(`theme-${color.c}`); document.documentElement.className = `${isDarkMode?'dark':'light'} theme-${color.c}`; }} 
-                                        className={`w-8 h-8 rounded-full border-2 transition-transform ${themeColor === `theme-${color.c}` ? 'scale-125 border-slate-800 dark:border-white' : 'border-transparent'}`} style={{backgroundColor: color.hex}}></button>
+                                        className={`w-12 h-12 rounded-full border-4 transition-all shadow-md flex items-center justify-center ${themeColor === `theme-${color.c}` ? 'scale-110 border-white dark:border-slate-300 ring-2 ring-slate-400' : 'border-transparent hover:scale-105'}`} style={{backgroundColor: color.hex}} title={color.name}>
+                                        {themeColor === `theme-${color.c}` && <i className="fa-solid fa-check text-white text-sm"></i>}
+                                    </button>
                                 ))}
                             </div>
                         </div>
 
-                        <div className="p-4 border rounded-xl bg-slate-50 dark:bg-slate-900 dark:border-slate-700">
-                            <h3 className="font-bold mb-2 flex items-center"><i className="fa-solid fa-lock text-rose-500 mr-2"></i>シークレットPIN (タスクロック用)</h3>
-                            <div className="flex gap-2">
-                                <LocalInput type="password" value={pinCode} onChange={val => {setPinCode(val); localStorage.setItem('taskMaster_pin', val);}} placeholder="数字や文字" className="border p-2 rounded w-full max-w-xs dark:bg-slate-800 dark:border-slate-600"/>
-                                {pinCode && <button onClick={() => setIsUnlocked(!isUnlocked)} className="px-4 py-2 bg-primary/10 text-primary rounded text-sm font-bold">{isUnlocked ? "ロックする" : "ロック解除中"}</button>}
+                        <div className="p-6 rounded-3xl bg-white/50 dark:bg-slate-800/50 border border-white/60 dark:border-slate-700 shadow-sm">
+                            <h3 className="font-bold mb-3 flex items-center text-lg"><i className="fa-solid fa-lock text-rose-500 mr-2"></i>シークレットPIN (タスクロック)</h3>
+                            <p className="text-xs text-slate-500 mb-3 font-medium">秘密のタスクを見るための鍵を設定してね🔑</p>
+                            <div className="flex gap-3">
+                                <LocalInput type="password" value={pinCode} onChange={val => {setPinCode(val); localStorage.setItem('taskMaster_pin', val);}} placeholder="数字や文字..." className="border-none bg-white/80 p-3 rounded-xl w-full max-w-xs dark:bg-slate-900/80 dark:text-slate-200 shadow-inner focus:ring-2 focus:ring-primary outline-none"/>
+                                {pinCode && <button onClick={() => setIsUnlocked(!isUnlocked)} className="px-5 py-3 bg-gradient-to-r from-primary to-primary-dark text-white rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all">{isUnlocked ? "ロックする" : "ロック解除中"}</button>}
                             </div>
                         </div>
 
-                        <div className="p-4 border rounded-xl bg-slate-50 dark:bg-slate-900 dark:border-slate-700">
-                            <h3 className="font-bold mb-2 flex items-center"><i className="fa-brands fa-github mr-2"></i>GitHub連携バックアップ</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-                                <LocalInput type="password" placeholder="Personal Access Token" className="border p-2 rounded dark:bg-slate-800 text-sm" value={githubSettings.token} onChange={val => setGithubSettings({...githubSettings, token: val})}/>
-                                <div className="flex gap-2">
-                                    <LocalInput placeholder="Owner" className="w-1/2 border p-2 rounded dark:bg-slate-800 text-sm" value={githubSettings.owner} onChange={val => setGithubSettings({...githubSettings, owner: val})}/>
-                                    <LocalInput placeholder="Repo" className="w-1/2 border p-2 rounded dark:bg-slate-800 text-sm" value={githubSettings.repo} onChange={val => setGithubSettings({...githubSettings, repo: val})}/>
+                        <div className="p-6 rounded-3xl bg-white/50 dark:bg-slate-800/50 border border-white/60 dark:border-slate-700 shadow-sm">
+                            <h3 className="font-bold mb-3 flex items-center text-lg"><i className="fa-brands fa-github mr-2"></i>クラウド設定 (GitHub)</h3>
+                            <p className="text-xs text-slate-500 mb-4 font-medium">これを入れるとダッシュボードから直接クラウドに保存できるようになるよ☁️</p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <LocalInput type="password" placeholder="Personal Access Token" className="border-none bg-white/80 p-3 rounded-xl dark:bg-slate-900/80 text-sm shadow-inner focus:ring-2 focus:ring-primary outline-none" value={githubSettings.token} onChange={val => setGithubSettings({...githubSettings, token: val})}/>
+                                <div className="flex gap-3">
+                                    <LocalInput placeholder="Owner" className="w-1/2 border-none bg-white/80 p-3 rounded-xl dark:bg-slate-900/80 text-sm shadow-inner focus:ring-2 focus:ring-primary outline-none" value={githubSettings.owner} onChange={val => setGithubSettings({...githubSettings, owner: val})}/>
+                                    <LocalInput placeholder="Repo" className="w-1/2 border-none bg-white/80 p-3 rounded-xl dark:bg-slate-900/80 text-sm shadow-inner focus:ring-2 focus:ring-primary outline-none" value={githubSettings.repo} onChange={val => setGithubSettings({...githubSettings, repo: val})}/>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <button onClick={() => { const nd = !isDarkMode; setIsDarkMode(nd); document.documentElement.classList.toggle('dark', nd); }} className="p-4 border rounded-xl text-center hover:bg-slate-50 dark:hover:bg-slate-700 dark:border-slate-700 transition-colors">
-                                <i className={`fa-solid ${isDarkMode ? 'fa-sun text-yellow-400' : 'fa-moon text-indigo-500'} text-2xl mb-2`}></i><br/><span className="text-sm font-bold">モード切替</span>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+                            <button onClick={() => { const nd = !isDarkMode; setIsDarkMode(nd); document.documentElement.classList.toggle('dark', nd); }} className="p-6 rounded-3xl bg-white/60 dark:bg-slate-800/60 border border-white/60 dark:border-slate-700 text-center hover:bg-white dark:hover:bg-slate-700 shadow-sm hover:shadow-md transition-all group">
+                                <i className={`fa-solid ${isDarkMode ? 'fa-sun text-yellow-400' : 'fa-moon text-indigo-500'} text-3xl mb-3 group-hover:rotate-12 transition-transform`}></i><br/><span className="text-sm font-bold">昼夜切替</span>
                             </button>
-                            <button onClick={() => exportAllData('taskmaster_backup.json', { tasks, schedules, activityLog, userStats, memos, todos, githubSettings })} className="p-4 border rounded-xl text-center hover:bg-slate-50 dark:hover:bg-slate-700 dark:border-slate-700 transition-colors">
-                                <i className="fa-solid fa-download text-emerald-500 text-2xl mb-2"></i><br/><span className="text-sm font-bold">ローカル保存</span>
+                            <button onClick={() => exportAllData(backupHistory[0] || 'backup.json', { tasks, schedules, activityLog, userStats, memos, todos, githubSettings })} className="p-6 rounded-3xl bg-white/60 dark:bg-slate-800/60 border border-white/60 dark:border-slate-700 text-center hover:bg-white dark:hover:bg-slate-700 shadow-sm hover:shadow-md transition-all group">
+                                <i className="fa-solid fa-download text-emerald-500 text-3xl mb-3 group-hover:-translate-y-1 transition-transform"></i><br/><span className="text-sm font-bold">端末へ保存</span>
                             </button>
-                            <div className="col-span-2 p-4 border rounded-xl bg-slate-50 dark:bg-slate-900 dark:border-slate-700 flex flex-col items-center justify-center">
-                                <p className="text-xs font-bold mb-2">スマホ引継ぎ用QR</p>
-                                <div ref={qrRef} className="p-2 bg-white rounded shadow-sm"></div>
+                            <div className="col-span-2 p-6 rounded-3xl bg-white/60 dark:bg-slate-800/60 border border-white/60 dark:border-slate-700 flex flex-col items-center justify-center shadow-sm">
+                                <p className="text-sm font-bold mb-3 text-slate-600 dark:text-slate-300">スマホ引継ぎ用QRコード📱</p>
+                                <div ref={qrRef} className="p-3 bg-white rounded-2xl shadow-md"></div>
                             </div>
                         </div>
                     </div>
@@ -921,7 +954,7 @@
             };
 
             return (
-                <div className="min-h-screen flex flex-col md:flex-row gap-4 p-2 md:p-4 lg:p-6 max-w-7xl mx-auto">
+                <div className="min-h-screen flex flex-col md:flex-row gap-6 p-3 md:p-6 lg:p-8 max-w-[1400px] mx-auto">
                     <Sidebar />
                     <div className="flex-1 min-w-0">
                         {currentView === 'dashboard' && <Dashboard />}
