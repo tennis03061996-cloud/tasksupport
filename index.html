@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Task Master Pro V11</title>
+    <title>Task Master Pro V13</title>
 
     <!-- 約束の自動追加アイコン (自然テーマのOceanカラーに合わせて変更) -->
     <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='25' fill='%230ea5e9'/><path d='M25 50 l15 15 l35 -35' stroke='white' stroke-width='10' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>" type="image/svg+xml">
@@ -78,6 +78,7 @@
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- QRコードライブラリ -->
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 </head>
 <body class="bg-gradient-to-br from-blue-50 via-teal-50 to-emerald-50 dark:from-slate-900 dark:via-cyan-950 dark:to-teal-950 text-slate-800 dark:text-slate-100 antialiased min-h-screen">
@@ -85,7 +86,6 @@
 
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
-        const apiKey = ""; 
 
         // --- BGM Generator ---
         let audioCtx, bgmNode;
@@ -105,7 +105,7 @@
         };
         const stopBGM = () => { if (bgmNode) { bgmNode.stop(); bgmNode.disconnect(); bgmNode = null; } };
 
-        // ★新機能: 達成の祝祭！(紙吹雪エフェクト)
+        // 達成の祝祭！(紙吹雪エフェクト)
         const shootConfetti = () => {
             const colors = ['#10b981', '#34d399', '#0ea5e9', '#f59e0b', '#ec4899', '#8b5cf6'];
             for(let i = 0; i < 60; i++) {
@@ -137,7 +137,7 @@
             }
         };
 
-        // 入力チラつき防止コンポーネント
+        // テキスト入力チラつき防止コンポーネント
         const LocalInput = ({ value, onChange, onEnter, placeholder, className, isTextarea, type = "text", list, title }) => {
             const [localVal, setLocalVal] = useState(value || '');
             useEffect(() => { setLocalVal(value || ''); }, [value]);
@@ -147,6 +147,14 @@
             
             if (isTextarea) return <textarea value={localVal} onChange={e => setLocalVal(e.target.value)} onBlur={handleBlur} placeholder={placeholder} className={className} title={title} />;
             return <input type={type} list={list} value={localVal} onChange={handleChange} onBlur={handleBlur} onKeyDown={handleKeyDown} placeholder={placeholder} className={className} title={title} />;
+        };
+
+        // カレンダーチラつき防止コンポーネント
+        const SafeDateInput = ({ type, value, onChange, className, title }) => {
+            const [localVal, setLocalVal] = useState(value || '');
+            useEffect(() => { setLocalVal(value || ''); }, [value]);
+            const handleBlur = () => { if (localVal !== value) onChange(localVal); };
+            return <input type={type} value={localVal} onChange={e => setLocalVal(e.target.value)} onBlur={handleBlur} className={className} title={title} />;
         };
 
         function App() {
@@ -172,8 +180,9 @@
             const [memos, setMemos] = useState([]);
             const [currentMemoId, setCurrentMemoId] = useState(null);
             
-            // GitHub
+            // GitHub & AI Settings
             const [githubSettings, setGithubSettings] = useState({ token: '', owner: '', repo: '' });
+            const [apiKeys, setApiKeys] = useState({ gemini: '' }); // ★ AI用のAPIキー状態を追加
             const [githubFiles, setGithubFiles] = useState([]);
             const [githubPath, setGithubPath] = useState('');
             const [isGithubLoading, setIsGithubLoading] = useState(false);
@@ -204,6 +213,7 @@
                 setActivityLog(safeParse('taskMaster_activityLog', {}));
                 setUserStats(safeParse('taskMaster_stats', {level: 1, xp: 0}));
                 setGithubSettings(safeParse('taskMaster_github', {token: '', owner: '', repo: ''}));
+                setApiKeys(safeParse('taskMaster_apiKeys', { gemini: '' })); // ★ APIキーの読み込み
                 setPinCode(localStorage.getItem('taskMaster_pin') || '');
                 setBackupHistory(safeParse('taskMaster_backupHistory', ['backup.json']));
                 
@@ -212,8 +222,12 @@
                 const lTheme = localStorage.getItem('taskMaster_theme') === 'dark';
                 setIsDarkMode(lTheme); document.documentElement.classList.toggle('dark', lTheme);
 
-                const lTodos = safeParse('grandTodos', []);
-                const lMemos = safeParse('grandMemos', []);
+                // ★ ToDoリスト読み込み時のIDかぶり防止（念のため振り直す）
+                let lTodos = safeParse('grandTodos', []);
+                lTodos = lTodos.map(t => ({...t, id: t.id || Date.now() + Math.random()}));
+                let lMemos = safeParse('grandMemos', []);
+                lMemos = lMemos.map(m => ({...m, id: m.id || Date.now() + Math.random()}));
+
                 setTodos(lTodos); setMemos(lMemos);
                 if (lMemos.length > 0) setCurrentMemoId(lMemos[0].id);
 
@@ -226,19 +240,20 @@
             }, []);
 
             useEffect(() => {
-                if(tasks.length === 0 && userStats.xp === 0) return;
+                if(tasks.length === 0 && userStats.xp === 0 && todos.length === 0) return;
                 localStorage.setItem('taskMaster_tasks', JSON.stringify(tasks));
                 localStorage.setItem('taskMaster_schedules', JSON.stringify(schedules));
                 localStorage.setItem('taskMaster_activityLog', JSON.stringify(activityLog));
                 localStorage.setItem('taskMaster_stats', JSON.stringify(userStats));
                 localStorage.setItem('taskMaster_github', JSON.stringify(githubSettings));
+                localStorage.setItem('taskMaster_apiKeys', JSON.stringify(apiKeys)); // ★ APIキーの保存
                 localStorage.setItem('taskMaster_theme', isDarkMode ? 'dark' : 'light');
                 localStorage.setItem('taskMaster_themeColor', themeColor);
                 localStorage.setItem('grandTodos', JSON.stringify(todos));
                 localStorage.setItem('grandMemos', JSON.stringify(memos));
-            }, [tasks, schedules, activityLog, userStats, isDarkMode, themeColor, todos, memos, githubSettings]);
+            }, [tasks, schedules, activityLog, userStats, isDarkMode, themeColor, todos, memos, githubSettings, apiKeys]);
 
-            // --- 日付カラー計算ヘルパー ---
+            // --- 日付カラー計算 ---
             const getDueDateStyles = (dateStr, isCompleted) => {
                 if (!dateStr || isCompleted) return { borderClass: '', textClass: 'text-slate-500' };
                 const target = new Date(dateStr); const today = new Date();
@@ -277,7 +292,7 @@
                         const newStatus = t.status === 'active' ? 'completed' : 'active';
                         let newStreak = t.streak || 0;
                         if (newStatus === 'completed') {
-                            shootConfetti(); // ★完了時にお祝い！
+                            shootConfetti();
                             logActivityAndGainXP();
                             if (t.type === 'routine') {
                                 const y = new Date(); y.setDate(y.getDate() - 1);
@@ -293,7 +308,7 @@
 
             const applyImportedData = (j) => {
                 if (j.memos) { setMemos(j.memos); if(j.memos.length>0) setCurrentMemoId(j.memos[0].id); }
-                else if (j.memo !== undefined) { const nm = [{id:Date.now(), title:'インポートメモ', content:j.memo}]; setMemos(nm); setCurrentMemoId(nm[0].id); }
+                else if (j.memo !== undefined) { const nm = [{id:Date.now() + Math.random(), title:'インポートメモ', content:j.memo}]; setMemos(nm); setCurrentMemoId(nm[0].id); }
                 if (j.todos) setTodos(j.todos);
                 if (j.tasks) setTasks(j.tasks);
                 if (j.schedules) setSchedules(j.schedules);
@@ -304,10 +319,10 @@
 
             // AI Features
             const callAiMotivator = async () => {
-                if(!apiKey) { setAiMessage("自然の風を感じて！自分のペースで進めよう！🌿"); setTimeout(()=>setAiMessage(""), 5000); return; }
+                if(!apiKeys.gemini) { setAiMessage("自然の風を感じて！自分のペースで進めよう！🌿"); setTimeout(()=>setAiMessage(""), 5000); return; }
                 setIsAiLoading(true);
                 try {
-                    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKeys.gemini}`, {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ contents: [{ parts: [{ text: "タスク管理を頑張るユーザーを、森や海や空などの自然の要素に例えて2文で癒しつつ褒めて。" }] }] })
                     });
@@ -317,11 +332,11 @@
             };
 
             const generateAiMilestones = async (task) => {
-                if(!apiKey) { alert("APIキーが未設定です。"); return; }
+                if(!apiKeys.gemini) { alert("APIキーが未設定です。左下の設定画面からGemini APIキーを入力してね！"); return; }
                 setIsAiLoading(true);
                 try {
                     const prompt = `タスク「${task.title}」を達成するためのマイルストーン(細分化ステップ)を3〜5個作成し、以下のJSON配列のみ出力してください。\n[{"title":"ステップ名","memo":"詳細"}]`;
-                    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKeys.gemini}`, {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
                     });
@@ -332,12 +347,14 @@
                         const steps = JSON.parse(jsonMatch[0]);
                         const newSubs = steps.map(s => ({ id: Date.now().toString()+Math.random(), title: s.title, status: 'active', memo: s.memo || '', dueDate: '', dueTime: '' }));
                         setTasks(tasks.map(t => t.id === task.id ? { ...t, subtasks: [...(t.subtasks||[]), ...newSubs] } : t));
+                    } else {
+                        alert("AIがうまくステップを作れなかったみたい。もう一度試してみてね！");
                     }
-                } catch(e) { alert("AIの生成に失敗しました。"); }
+                } catch(e) { alert("AIの生成に失敗しました。"); console.error(e); }
                 setIsAiLoading(false);
             };
 
-            // GitHub Folder Features
+            // GitHub
             const fetchGithubPath = async (path = '') => {
                 if (!githubSettings.token) { alert("設定画面からGitHub連携を行ってください。"); return; }
                 setIsGithubLoading(true);
@@ -516,7 +533,7 @@
                                             </div>
                                         ))}
                                     </div>
-                                    <button onClick={() => setTodos([...todos, {id: Date.now(), text: '新規', completed: false}])} className="text-xs bg-primary/10 hover:bg-primary/20 text-primary py-1.5 px-3 rounded-xl font-bold w-full transition-colors"><i className="fa-solid fa-plus mr-1"></i>追加</button>
+                                    <button onClick={() => setTodos([...todos, {id: Date.now() + Math.random(), text: '新規', completed: false}])} className="text-xs bg-primary/10 hover:bg-primary/20 text-primary py-1.5 px-3 rounded-xl font-bold w-full transition-colors"><i className="fa-solid fa-plus mr-1"></i>追加</button>
                                 </>
                             )}
                         </div>
@@ -527,7 +544,7 @@
                                     <i className="fa-regular fa-file-lines text-amber-500 mr-2"></i>同期メモ
                                     <i className={`fa-solid fa-chevron-${isMemoExpanded ? 'down' : 'right'} ml-2 text-xs text-slate-400 transition-transform`}></i>
                                 </h3>
-                                <button onClick={(e) => { e.stopPropagation(); const newM = {id: Date.now(), title: '新規', content: ''}; setMemos([...memos, newM]); setCurrentMemoId(newM.id); setIsMemoExpanded(true); }} className="text-xs text-amber-600 bg-amber-100 dark:bg-amber-900/30 w-6 h-6 rounded-full flex items-center justify-center hover:bg-amber-200 transition-colors"><i className="fa-solid fa-plus"></i></button>
+                                <button onClick={(e) => { e.stopPropagation(); const newM = {id: Date.now() + Math.random(), title: '新規', content: ''}; setMemos([...memos, newM]); setCurrentMemoId(newM.id); setIsMemoExpanded(true); }} className="text-xs text-amber-600 bg-amber-100 dark:bg-amber-900/30 w-6 h-6 rounded-full flex items-center justify-center hover:bg-amber-200 transition-colors"><i className="fa-solid fa-plus"></i></button>
                             </div>
                             
                             {isMemoExpanded && memos.length > 0 && (
@@ -558,7 +575,6 @@
                 if (activeTagFilter) list = list.filter(t => t.tags?.includes(activeTagFilter));
                 if (type === 'completed') list = tasks.filter(t => t.status === 'completed');
 
-                // ★ソート: 時間も考慮するように進化
                 if (sortMode === 'date') {
                     list.sort((a, b) => {
                         const ta = new Date(`${a.dueDate || '9999-12-31'}T${a.dueTime || '23:59'}`).getTime();
@@ -611,7 +627,7 @@
                                 <button onClick={() => setSortMode(s => s==='manual'?'date' : s==='date'?'priority' : 'manual')} className={`text-xs px-3 py-1.5 rounded-full border transition-all ${sortInfo.color}`} title={sortInfo.title}>
                                     <i className={`fa-solid ${sortInfo.icon} mr-1`}></i>{sortInfo.text}
                                 </button>
-                                <button onClick={() => setTasks([...tasks, { id: Date.now().toString(), title: '新規タスク', type, status: 'active', subtasks: [], tags: [], isSecret: false, streak: 0, priority: 0, dueDate: '', dueTime: '' }])} className="text-xs bg-primary/10 text-primary px-3 py-1.5 rounded-full hover:bg-primary/20 font-bold transition-colors"><i className="fa-solid fa-plus mr-1"></i>追加</button>
+                                <button onClick={() => setTasks([...tasks, { id: Date.now().toString() + Math.random(), title: '新規タスク', type, status: 'active', subtasks: [], tags: [], isSecret: false, streak: 0, priority: 0, dueDate: '', dueTime: '' }])} className="text-xs bg-primary/10 text-primary px-3 py-1.5 rounded-full hover:bg-primary/20 font-bold transition-colors"><i className="fa-solid fa-plus mr-1"></i>追加</button>
                             </div>
                         )}
                     </div>
@@ -639,7 +655,6 @@
                                             </div>
                                             {!isHidden && (
                                                 <div className="flex text-xs gap-3 mt-1 font-medium items-center">
-                                                    {/* ★新機能: タスクリストに時間も表示 */}
                                                     {(task.dueDate || task.dueTime) && <span className={`${styles.textClass} bg-white/50 dark:bg-slate-900/50 px-1.5 rounded`}><i className="fa-regular fa-calendar mr-1"></i>{task.dueDate} {task.dueTime}</span>}
                                                     {progress > 0 && <span className="text-slate-400 bg-white/50 dark:bg-slate-900/50 px-1.5 rounded">進捗: {progress}%</span>}
                                                     {task.streak > 0 && <span className="text-orange-500"><i className="fa-solid fa-fire mr-0.5"></i>{task.streak}</span>}
@@ -741,19 +756,18 @@
                                         {schedules.map(sc => {
                                             const styles = getDueDateStyles(sc.date, false);
                                             return (
-                                            <div key={sc.id} className={`flex flex-col gap-2 text-sm p-3 bg-white/40 dark:bg-slate-900/40 rounded-2xl border border-white/50 dark:border-slate-700/50 hover:bg-white/60 transition-colors ${styles.borderClass}`}>
-                                                <div className="flex gap-2 items-center flex-wrap">
-                                                    <input type="date" className={`input-glass input-glass-noborder px-2 py-1 text-xs ${styles.textClass}`} value={sc.date} onChange={e => setSchedules(schedules.map(s => s.id === sc.id ? {...s, date: e.target.value} : s))}/>
-                                                    {/* ★新機能: スケジュールにも時間を追加 */}
-                                                    <input type="time" className={`input-glass input-glass-noborder px-2 py-1 text-xs ${styles.textClass}`} value={sc.time || ''} onChange={e => setSchedules(schedules.map(s => s.id === sc.id ? {...s, time: e.target.value} : s))}/>
-                                                    <button onClick={() => setSchedules(schedules.filter(s => s.id !== sc.id))} className="text-rose-400 ml-auto hover:text-rose-600 bg-white/50 dark:bg-slate-800/50 w-6 h-6 rounded-full flex items-center justify-center transition-colors"><i className="fa-solid fa-xmark"></i></button>
+                                            <div key={sc.id} className={`flex items-center gap-2 p-2 bg-white/40 dark:bg-slate-900/40 rounded-xl border border-white/50 dark:border-slate-700/50 hover:bg-white/60 transition-colors ${styles.borderClass}`}>
+                                                <div className="flex flex-col gap-1 w-28 flex-shrink-0">
+                                                    <SafeDateInput type="date" className={`input-glass input-glass-noborder px-1.5 py-0.5 text-xs w-full ${styles.textClass}`} value={sc.date} onChange={val => setSchedules(schedules.map(s => s.id === sc.id ? {...s, date: val} : s))}/>
+                                                    <SafeDateInput type="time" className={`input-glass input-glass-noborder px-1.5 py-0.5 text-xs w-full ${styles.textClass}`} value={sc.time || ''} onChange={val => setSchedules(schedules.map(s => s.id === sc.id ? {...s, time: val} : s))}/>
                                                 </div>
-                                                <LocalInput value={sc.title} onChange={(val) => setSchedules(schedules.map(s => s.id === sc.id ? {...s, title: val} : s))} className="w-full input-glass input-glass-noborder px-2 py-1 font-semibold" placeholder="予定内容..."/>
+                                                <LocalInput value={sc.title} onChange={(val) => setSchedules(schedules.map(s => s.id === sc.id ? {...s, title: val} : s))} className="w-full input-glass input-glass-noborder px-2 py-1 text-sm font-semibold" placeholder="予定内容..."/>
+                                                <button onClick={() => setSchedules(schedules.filter(s => s.id !== sc.id))} className="text-rose-400 ml-auto hover:text-rose-600 w-6 h-6 rounded-full flex items-center justify-center transition-colors flex-shrink-0"><i className="fa-solid fa-xmark"></i></button>
                                             </div>
                                         )})}
                                         {schedules.length === 0 && <p className="text-center text-xs text-slate-400 py-4">予定を追加してね🕊️</p>}
                                     </div>
-                                    <button onClick={() => setSchedules([...schedules, {id: Date.now().toString(), title: '', date: '', time: ''}])} className="mt-4 text-sm bg-blue-500 hover:bg-blue-600 text-white shadow-md px-4 py-2 rounded-xl w-full font-bold transition-all hover:shadow-lg hover:-translate-y-0.5"><i className="fa-solid fa-plus mr-1"></i>予定を追加</button>
+                                    <button onClick={() => setSchedules([...schedules, {id: Date.now().toString() + Math.random(), title: '', date: '', time: ''}])} className="mt-4 text-sm bg-blue-500 hover:bg-blue-600 text-white shadow-md px-4 py-2 rounded-xl w-full font-bold transition-all hover:shadow-lg hover:-translate-y-0.5"><i className="fa-solid fa-plus mr-1"></i>予定を追加</button>
                                 </div>
                             </div>
                         </div>
@@ -767,7 +781,6 @@
                 const [tagInput, setTagInput] = useState('');
                 const [taskFileName, setTaskFileName] = useState('');
                 
-                // ★新機能: Deep Focus用ポモドーロタイマー
                 const [focusTimeLeft, setFocusTimeLeft] = useState(25 * 60);
                 const [isTimerRunning, setIsTimerRunning] = useState(false);
 
@@ -780,7 +793,7 @@
                         interval = setInterval(() => setFocusTimeLeft(f => f - 1), 1000);
                     } else if (isTimerRunning && focusTimeLeft === 0) {
                         setIsTimerRunning(false);
-                        shootConfetti(); // タイマー終了時にもお祝い！
+                        shootConfetti(); 
                     }
                     return () => clearInterval(interval);
                 }, [isTimerRunning, focusTimeLeft]);
@@ -805,7 +818,6 @@
                             <h2 className="text-white/60 text-xl mb-4 font-bold tracking-widest"><i className="fa-solid fa-wind mr-2"></i>Deep Focus</h2>
                             <p className="text-4xl md:text-5xl font-extrabold text-white mb-8 text-center drop-shadow-lg">{task.title}</p>
                             
-                            {/* ★新機能: ポモドーロタイマー表示 */}
                             <div className="mb-8 text-center bg-white/5 p-6 rounded-[2rem] border border-white/10 backdrop-blur-md shadow-2xl">
                                 <div className="text-7xl md:text-8xl font-mono text-white font-black tracking-widest drop-shadow-lg mb-6">{formatTime(focusTimeLeft)}</div>
                                 <div className="flex gap-3 justify-center flex-wrap">
@@ -870,11 +882,10 @@
                                     <div className="flex items-center">
                                         <i className={`fa-regular fa-calendar mr-2 text-lg ${getDueDateStyles(task.dueDate, false).textClass}`}></i>
                                         <span className={`text-sm font-bold mr-2 ${getDueDateStyles(task.dueDate, false).textClass}`}>締め切り:</span>
-                                        <input type="date" className={`input-glass px-3 py-1.5 text-sm cursor-pointer ${getDueDateStyles(task.dueDate, false).textClass}`} value={task.dueDate || ''} onChange={(e) => updateTask({ dueDate: e.target.value })} title="日付"/>
+                                        <SafeDateInput type="date" className={`input-glass px-3 py-1.5 text-sm cursor-pointer ${getDueDateStyles(task.dueDate, false).textClass}`} value={task.dueDate || ''} onChange={(val) => updateTask({ dueDate: val })} title="日付"/>
                                     </div>
-                                    {/* ★新機能: メインタスクにも時間設定を追加 */}
                                     <div className="flex items-center">
-                                        <input type="time" className={`input-glass px-3 py-1.5 text-sm cursor-pointer ml-1 ${getDueDateStyles(task.dueDate, false).textClass}`} value={task.dueTime || ''} onChange={(e) => updateTask({ dueTime: e.target.value })} title="時間"/>
+                                        <SafeDateInput type="time" className={`input-glass px-3 py-1.5 text-sm cursor-pointer ml-1 ${getDueDateStyles(task.dueDate, false).textClass}`} value={task.dueTime || ''} onChange={(val) => updateTask({ dueTime: val })} title="時間"/>
                                     </div>
                                 </div>
                                 <div className="flex items-center xl:border-l border-slate-300/50 xl:pl-4 dark:border-slate-700">
@@ -900,7 +911,6 @@
                                         onKeyDown={(e) => { if(e.key === 'Enter' && tagInput.trim()) { updateTask({ tags: [...new Set([...(task.tags||[]), tagInput.trim().replace(/^#/,'')])]}); setTagInput(''); } }}
                                         placeholder="タグ追加(Enter)" className="input-glass px-3 py-1.5 w-36 text-xs" />
                                 </div>
-                                {/* ★新機能: クイック・タグパレット */}
                                 {allTags.length > 0 && (
                                     <div className="mt-2.5 flex flex-wrap gap-1.5 items-center">
                                         <span className="text-[10px] text-slate-400 font-bold mr-1"><i className="fa-solid fa-clock-rotate-left mr-1"></i>履歴から追加:</span>
@@ -934,7 +944,7 @@
                                     <button onClick={() => {
                                         const newStatus = sub.status === 'active' ? 'completed' : 'active';
                                         updateTask({ subtasks: task.subtasks.map(s => s.id === sub.id ? {...s, status: newStatus} : s) });
-                                        if(newStatus === 'completed') shootConfetti(); // サブタスク完了でも紙吹雪！
+                                        if(newStatus === 'completed') shootConfetti(); 
                                     }} className="mt-1 text-slate-300 hover:text-emerald-500 transition-colors drop-shadow-sm">
                                         {sub.status === 'completed' ? <i className="fa-solid fa-circle-check text-emerald-500 text-2xl"></i> : <i className="fa-regular fa-circle text-2xl"></i>}
                                     </button>
@@ -944,18 +954,18 @@
                                         <div className="flex flex-wrap items-center gap-3 mt-1 px-1">
                                             <div className="flex items-center gap-1.5 bg-white/40 dark:bg-slate-800/40 rounded-xl p-1 shadow-inner border border-white/50 dark:border-slate-700">
                                                 <i className="fa-regular fa-calendar text-slate-400 text-xs ml-1.5"></i>
-                                                <input type="date" className={`input-glass input-glass-noborder px-2 py-1 text-xs cursor-pointer ${sub.status === 'completed' ? 'text-slate-400' : 'text-slate-500 dark:text-slate-300'}`} value={sub.dueDate || ''} onChange={(e) => updateTask({ subtasks: task.subtasks.map(s => s.id === sub.id ? {...s, dueDate: e.target.value} : s) })} title="期限(日付)" />
+                                                <SafeDateInput type="date" className={`input-glass input-glass-noborder px-2 py-1 text-xs cursor-pointer ${sub.status === 'completed' ? 'text-slate-400' : 'text-slate-500 dark:text-slate-300'}`} value={sub.dueDate || ''} onChange={(val) => updateTask({ subtasks: task.subtasks.map(s => s.id === sub.id ? {...s, dueDate: val} : s) })} title="期限(日付)" />
                                             </div>
                                             <div className="flex items-center gap-1.5 bg-white/40 dark:bg-slate-800/40 rounded-xl p-1 shadow-inner border border-white/50 dark:border-slate-700">
                                                 <i className="fa-regular fa-clock text-slate-400 text-xs ml-1.5"></i>
-                                                <input type="time" className={`input-glass input-glass-noborder px-2 py-1 text-xs cursor-pointer ${sub.status === 'completed' ? 'text-slate-400' : 'text-slate-500 dark:text-slate-300'}`} value={sub.dueTime || ''} onChange={(e) => updateTask({ subtasks: task.subtasks.map(s => s.id === sub.id ? {...s, dueTime: e.target.value} : s) })} title="期限(時間)" />
+                                                <SafeDateInput type="time" className={`input-glass input-glass-noborder px-2 py-1 text-xs cursor-pointer ${sub.status === 'completed' ? 'text-slate-400' : 'text-slate-500 dark:text-slate-300'}`} value={sub.dueTime || ''} onChange={(val) => updateTask({ subtasks: task.subtasks.map(s => s.id === sub.id ? {...s, dueTime: val} : s) })} title="期限(時間)" />
                                             </div>
                                         </div>
                                     </div>
                                     <button onClick={() => updateTask({ subtasks: task.subtasks.filter(s => s.id !== sub.id) })} className="opacity-0 group-hover:opacity-100 text-rose-400 w-8 h-8 rounded-full hover:bg-rose-100 dark:hover:bg-rose-900/30 flex items-center justify-center transition-all"><i className="fa-solid fa-xmark"></i></button>
                                 </div>
                             ))}
-                            <button onClick={() => updateTask({ subtasks: [...task.subtasks, { id: Date.now().toString(), title: '', status: 'active', dueDate: '', dueTime: '' }] })} className="w-full py-3 border-2 border-dashed border-primary/30 rounded-2xl text-primary hover:bg-primary/5 dark:hover:bg-primary/10 text-sm font-bold transition-colors flex items-center justify-center"><i className="fa-solid fa-plus mr-2"></i>ステップを追加</button>
+                            <button onClick={() => updateTask({ subtasks: [...task.subtasks, { id: Date.now().toString() + Math.random(), title: '', status: 'active', dueDate: '', dueTime: '' }] })} className="w-full py-3 border-2 border-dashed border-primary/30 rounded-2xl text-primary hover:bg-primary/5 dark:hover:bg-primary/10 text-sm font-bold transition-colors flex items-center justify-center"><i className="fa-solid fa-plus mr-2"></i>ステップを追加</button>
                         </div>
 
                         <h3 className="font-bold text-lg mb-3 text-slate-700 dark:text-slate-200 flex items-center"><i className="fa-regular fa-file-lines text-amber-500 mr-2"></i>詳細ノート</h3>
@@ -1090,14 +1100,37 @@
 
             const SettingsView = () => {
                 const qrRef = useRef(null);
+                
+                // ★ QRコード生成処理を改善 (データ量を減らし、確実にする)
                 useEffect(() => {
-                    if(qrRef.current && typeof QRCode !== 'undefined') {
+                    if (qrRef.current && typeof QRCode !== 'undefined') {
                         qrRef.current.innerHTML = '';
-                        const exportData = { lv: userStats.level, xp: userStats.xp, t: tasks.filter(t=>t.status==='active').slice(0,5).map(t=>({id:t.id, title:t.title})) };
-                        const dataStr = btoa(unescape(encodeURIComponent(JSON.stringify(exportData))));
-                        new QRCode(qrRef.current, { text: `taskmaster://sync?d=${dataStr.substring(0, 500)}`, width: 160, height: 160, colorDark : "#1e293b", colorLight : "#ffffff" });
+                        try {
+                            // URLが長すぎるとQRコードが生成できないので、最低限のデータに絞る
+                            const exportData = { 
+                                lv: userStats.level, 
+                                xp: userStats.xp, 
+                                t: tasks.filter(t=>t.status==='active').slice(0,3).map(t=>t.title) 
+                            };
+                            const jsonStr = JSON.stringify(exportData);
+                            // URIエンコードをして安全な文字列にする
+                            const encodedStr = encodeURIComponent(jsonStr);
+                            const finalUrl = `taskmaster://sync?d=${encodedStr}`.substring(0, 200); // さらに安全のため短くカット
+
+                            new QRCode(qrRef.current, { 
+                                text: finalUrl, 
+                                width: 140, 
+                                height: 140, 
+                                colorDark : "#1e293b", 
+                                colorLight : "#ffffff",
+                                correctLevel : QRCode.CorrectLevel.L // エラー訂正レベルを下げてデータ量を稼ぐ
+                            });
+                        } catch (e) {
+                            console.error("QR Code generation failed:", e);
+                            qrRef.current.innerHTML = '<span class="text-xs text-rose-500">QRの生成に失敗しました😢</span>';
+                        }
                     }
-                }, [currentView]);
+                }, [currentView, userStats, tasks]); // 表示された時とデータが変わった時に更新
 
                 return (
                     <div className="flex-1 glass-panel rounded-[2rem] p-6 md:p-10 space-y-8">
@@ -1107,6 +1140,15 @@
                             <h3 className="font-bold mb-2 flex items-center text-amber-700 dark:text-amber-500 text-lg"><i className="fa-solid fa-file-import mr-2"></i>データのインポート (お引越し)</h3>
                             <p className="text-sm text-amber-600/80 dark:text-amber-400/80 mb-4 font-medium">以前のバックアップファイル (JSON) を読み込んで、世界を復元します🌿</p>
                             <input type="file" accept=".json" onChange={importJSONData} className="text-sm file:mr-4 file:py-2.5 file:px-5 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-amber-100 file:text-amber-700 hover:file:bg-amber-200 cursor-pointer transition-colors"/>
+                        </div>
+
+                        {/* ★ 新機能: AI連携 (Gemini API) の設定項目 */}
+                        <div className="p-6 rounded-3xl bg-emerald-50/80 dark:bg-emerald-900/20 border border-emerald-200/50 dark:border-emerald-800/50 shadow-sm">
+                            <h3 className="font-bold mb-2 flex items-center text-emerald-700 dark:text-emerald-500 text-lg"><i className="fa-solid fa-wand-magic-sparkles mr-2"></i>AI連携 (Gemini)</h3>
+                            <p className="text-sm text-emerald-600/80 dark:text-emerald-400/80 mb-4 font-medium">APIキーを設定すると、タスクの「AI細分化」などが使えるようになるよ！✨</p>
+                            <div className="flex gap-3">
+                                <LocalInput type="password" value={apiKeys.gemini} onChange={val => setApiKeys({...apiKeys, gemini: val})} placeholder="Gemini APIキーを入力..." className="input-glass p-3 w-full max-w-md"/>
+                            </div>
                         </div>
 
                         <div className="p-6 rounded-3xl bg-white/50 dark:bg-slate-800/50 border border-white/60 dark:border-slate-700 shadow-sm">
@@ -1146,12 +1188,12 @@
                             <button onClick={() => { const nd = !isDarkMode; setIsDarkMode(nd); document.documentElement.classList.toggle('dark', nd); }} className="p-6 rounded-3xl bg-white/60 dark:bg-slate-800/60 border border-white/60 dark:border-slate-700 text-center hover:bg-white dark:hover:bg-slate-700 shadow-sm hover:shadow-md transition-all group">
                                 <i className={`fa-solid ${isDarkMode ? 'fa-sun text-yellow-400' : 'fa-moon text-indigo-500'} text-3xl mb-3 group-hover:rotate-12 transition-transform`}></i><br/><span className="text-sm font-bold">昼夜切替</span>
                             </button>
-                            <button onClick={() => exportAllData(backupHistory[0] || 'backup.json', { tasks, schedules, activityLog, userStats, memos, todos, githubSettings })} className="p-6 rounded-3xl bg-white/60 dark:bg-slate-800/60 border border-white/60 dark:border-slate-700 text-center hover:bg-white dark:hover:bg-slate-700 shadow-sm hover:shadow-md transition-all group">
+                            <button onClick={() => exportAllData(backupHistory[0] || 'backup.json', { tasks, schedules, activityLog, userStats, memos, todos, githubSettings, apiKeys })} className="p-6 rounded-3xl bg-white/60 dark:bg-slate-800/60 border border-white/60 dark:border-slate-700 text-center hover:bg-white dark:hover:bg-slate-700 shadow-sm hover:shadow-md transition-all group">
                                 <i className="fa-solid fa-download text-emerald-500 text-3xl mb-3 group-hover:-translate-y-1 transition-transform"></i><br/><span className="text-sm font-bold">端末へ保存</span>
                             </button>
                             <div className="col-span-2 p-6 rounded-3xl bg-white/60 dark:bg-slate-800/60 border border-white/60 dark:border-slate-700 flex flex-col items-center justify-center shadow-sm">
                                 <p className="text-sm font-bold mb-3 text-slate-600 dark:text-slate-300">スマホ引継ぎ用QRコード📱</p>
-                                <div ref={qrRef} className="p-3 bg-white rounded-2xl shadow-md"></div>
+                                <div ref={qrRef} className="p-3 bg-white rounded-2xl shadow-md min-h-[160px] flex items-center justify-center"></div>
                             </div>
                         </div>
                     </div>
