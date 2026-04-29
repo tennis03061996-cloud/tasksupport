@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Task Master Pro V13</title>
+    <title>Task Master Pro V14</title>
 
     <!-- 約束の自動追加アイコン (自然テーマのOceanカラーに合わせて変更) -->
     <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='25' fill='%230ea5e9'/><path d='M25 50 l15 15 l35 -35' stroke='white' stroke-width='10' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>" type="image/svg+xml">
@@ -182,11 +182,19 @@
             
             // GitHub & AI Settings
             const [githubSettings, setGithubSettings] = useState({ token: '', owner: '', repo: '' });
-            const [apiKeys, setApiKeys] = useState({ gemini: '' }); // ★ AI用のAPIキー状態を追加
+            const [apiKeys, setApiKeys] = useState({ gemini: '' });
             const [githubFiles, setGithubFiles] = useState([]);
             const [githubPath, setGithubPath] = useState('');
             const [isGithubLoading, setIsGithubLoading] = useState(false);
             const [backupHistory, setBackupHistory] = useState([]); 
+            const [lastGithubSyncPath, setLastGithubSyncPath] = useState('');
+            const [syncMessage, setSyncMessage] = useState('');
+
+            // カレンダーと折り畳み状態
+            const [isScheduleExpanded, setIsScheduleExpanded] = useState(true);
+            const [calendarButtons, setCalendarButtons] = useState(['a8', 'A', 'B', 'O', '☆予定']);
+            const [calendarStamps, setCalendarStamps] = useState({});
+            const [selectedCalBtn, setSelectedCalBtn] = useState(null);
 
             // AI & Focus
             const [isAiLoading, setIsAiLoading] = useState(false);
@@ -197,6 +205,28 @@
             const safeParse = (key, defaultVal) => { try { const i = localStorage.getItem(key); return i ? JSON.parse(i) : defaultVal; } catch { return defaultVal; } };
 
             useEffect(() => {
+                // 1. スマホQRからの設定引き継ぎ判定 (URLパラメータ ?sync= )
+                const params = new URLSearchParams(window.location.search);
+                const syncData = params.get('sync');
+                if (syncData) {
+                    try {
+                        const decodedData = JSON.parse(decodeURIComponent(escape(atob(syncData))));
+                        if (decodedData.github) setGithubSettings(decodedData.github);
+                        if (decodedData.keys) setApiKeys(decodedData.keys);
+                        
+                        localStorage.setItem('taskMaster_github', JSON.stringify(decodedData.github));
+                        localStorage.setItem('taskMaster_apiKeys', JSON.stringify(decodedData.keys));
+                        
+                        alert('設定の引き継ぎに成功しました！🎉\nダッシュボードの「読込」ボタンからクラウドデータを復元してください。');
+                        // URLからパラメータを消去
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                    } catch(e) { console.error("Sync error", e); }
+                } else {
+                    setGithubSettings(safeParse('taskMaster_github', {token: '', owner: '', repo: ''}));
+                    setApiKeys(safeParse('taskMaster_apiKeys', { gemini: '' }));
+                }
+
+                // 2. 通常データの読み込み
                 let lTasks = safeParse('taskMaster_tasks', []);
                 const todayStr = new Date().toISOString().split('T')[0];
                 
@@ -212,8 +242,6 @@
                 setSchedules(safeParse('taskMaster_schedules', []));
                 setActivityLog(safeParse('taskMaster_activityLog', {}));
                 setUserStats(safeParse('taskMaster_stats', {level: 1, xp: 0}));
-                setGithubSettings(safeParse('taskMaster_github', {token: '', owner: '', repo: ''}));
-                setApiKeys(safeParse('taskMaster_apiKeys', { gemini: '' })); // ★ APIキーの読み込み
                 setPinCode(localStorage.getItem('taskMaster_pin') || '');
                 setBackupHistory(safeParse('taskMaster_backupHistory', ['backup.json']));
                 
@@ -222,7 +250,13 @@
                 const lTheme = localStorage.getItem('taskMaster_theme') === 'dark';
                 setIsDarkMode(lTheme); document.documentElement.classList.toggle('dark', lTheme);
 
-                // ★ ToDoリスト読み込み時のIDかぶり防止（念のため振り直す）
+                // 折り畳みとカレンダーの状態
+                setIsScheduleExpanded(safeParse('taskMaster_ui_schedule', true));
+                setCalendarButtons(safeParse('taskMaster_calBtns', ['a8', 'A', 'B', 'O', '☆予定']));
+                setCalendarStamps(safeParse('taskMaster_calStamps', {}));
+                const savedPath = localStorage.getItem('taskMaster_lastGithubSyncPath') || '';
+                setLastGithubSyncPath(savedPath);
+
                 let lTodos = safeParse('grandTodos', []);
                 lTodos = lTodos.map(t => ({...t, id: t.id || Date.now() + Math.random()}));
                 let lMemos = safeParse('grandMemos', []);
@@ -239,6 +273,40 @@
                 return () => window.removeEventListener('storage', handleStorageChange);
             }, []);
 
+            // ★ 自動読み込み処理 (初期マウント後に一度だけ実行)
+            useEffect(() => {
+                const autoLoad = async () => {
+                    const token = safeParse('taskMaster_github', {}).token;
+                    const path = localStorage.getItem('taskMaster_lastGithubSyncPath');
+                    
+                    if (token && path && tasks.length > 0) { // tokenとpathがあり、既に初期化が済んでいる場合
+                        try {
+                            const settings = safeParse('taskMaster_github', {});
+                            const res = await fetch(`https://api.github.com/repos/${settings.owner}/${settings.repo}/contents/${path}`, { headers: { 'Authorization': `token ${settings.token}` } });
+                            if(res.ok) {
+                                const data = await res.json();
+                                const decoded = decodeURIComponent(escape(atob(data.content)));
+                                const j = JSON.parse(decoded);
+                                // 自動同期ではalertを出さずに静かに適用
+                                if (j.todos) setTodos(j.todos);
+                                if (j.tasks) setTasks(j.tasks);
+                                if (j.schedules) setSchedules(j.schedules);
+                                if (j.userStats) setUserStats(j.userStats);
+                                if (j.activityLog) setActivityLog(j.activityLog);
+                                if (j.calendarButtons) setCalendarButtons(j.calendarButtons);
+                                if (j.calendarStamps) setCalendarStamps(j.calendarStamps);
+                                
+                                setSyncMessage(`☁️ クラウド(${path})から自動同期しました🌿`);
+                                setTimeout(() => setSyncMessage(''), 5000);
+                            }
+                        } catch(e) { console.error("Auto load failed", e); }
+                    }
+                };
+                // 少し遅延させて初期化処理の競合を防ぐ
+                const timer = setTimeout(autoLoad, 1000);
+                return () => clearTimeout(timer);
+            }, []); // 依存配列は空（1回だけ実行）
+
             useEffect(() => {
                 if(tasks.length === 0 && userStats.xp === 0 && todos.length === 0) return;
                 localStorage.setItem('taskMaster_tasks', JSON.stringify(tasks));
@@ -246,12 +314,18 @@
                 localStorage.setItem('taskMaster_activityLog', JSON.stringify(activityLog));
                 localStorage.setItem('taskMaster_stats', JSON.stringify(userStats));
                 localStorage.setItem('taskMaster_github', JSON.stringify(githubSettings));
-                localStorage.setItem('taskMaster_apiKeys', JSON.stringify(apiKeys)); // ★ APIキーの保存
+                localStorage.setItem('taskMaster_apiKeys', JSON.stringify(apiKeys));
                 localStorage.setItem('taskMaster_theme', isDarkMode ? 'dark' : 'light');
                 localStorage.setItem('taskMaster_themeColor', themeColor);
                 localStorage.setItem('grandTodos', JSON.stringify(todos));
                 localStorage.setItem('grandMemos', JSON.stringify(memos));
-            }, [tasks, schedules, activityLog, userStats, isDarkMode, themeColor, todos, memos, githubSettings, apiKeys]);
+                
+                // 新規状態の保存
+                localStorage.setItem('taskMaster_ui_schedule', JSON.stringify(isScheduleExpanded));
+                localStorage.setItem('taskMaster_calBtns', JSON.stringify(calendarButtons));
+                localStorage.setItem('taskMaster_calStamps', JSON.stringify(calendarStamps));
+                if(lastGithubSyncPath) localStorage.setItem('taskMaster_lastGithubSyncPath', lastGithubSyncPath);
+            }, [tasks, schedules, activityLog, userStats, isDarkMode, themeColor, todos, memos, githubSettings, apiKeys, isScheduleExpanded, calendarButtons, calendarStamps, lastGithubSyncPath]);
 
             // --- 日付カラー計算 ---
             const getDueDateStyles = (dateStr, isCompleted) => {
@@ -306,15 +380,16 @@
                 }));
             };
 
-            const applyImportedData = (j) => {
+            const applyImportedData = (j, silent = false) => {
                 if (j.memos) { setMemos(j.memos); if(j.memos.length>0) setCurrentMemoId(j.memos[0].id); }
-                else if (j.memo !== undefined) { const nm = [{id:Date.now() + Math.random(), title:'インポートメモ', content:j.memo}]; setMemos(nm); setCurrentMemoId(nm[0].id); }
                 if (j.todos) setTodos(j.todos);
                 if (j.tasks) setTasks(j.tasks);
                 if (j.schedules) setSchedules(j.schedules);
                 if (j.userStats) setUserStats(j.userStats);
                 if (j.activityLog) setActivityLog(j.activityLog);
-                alert("データを正常に復元したよ！🌿");
+                if (j.calendarButtons) setCalendarButtons(j.calendarButtons);
+                if (j.calendarStamps) setCalendarStamps(j.calendarStamps);
+                if (!silent) alert("データを正常に復元したよ！🌿");
             };
 
             // AI Features
@@ -405,7 +480,10 @@
                         method: 'PUT', headers: { 'Authorization': `token ${githubSettings.token}`, 'Content-Type': 'application/json' },
                         body: JSON.stringify({ message: `Save ${targetPath} from TaskMaster`, content: btoa(unescape(encodeURIComponent(textContent))), ...(sha && { sha }) })
                     });
-                    if(res.ok) { alert(`${targetPath} をクラウドに保存したよ！`); }
+                    if(res.ok) { 
+                        alert(`${targetPath} をクラウドに保存したよ！`); 
+                        setLastGithubSyncPath(targetPath); // ★ 自動読み込み用にパスを記憶
+                    }
                     else { alert(`${targetPath} の保存に失敗しちゃった...`); }
                 } catch(e) { console.error(e); }
                 setIsGithubLoading(false);
@@ -421,6 +499,7 @@
                         const decoded = decodeURIComponent(escape(atob(data.content)));
                         const j = JSON.parse(decoded);
                         applyImportedData(j);
+                        setLastGithubSyncPath(targetPath); // ★ 自動読み込み用にパスを記憶
                     } else {
                         alert(`${targetPath} の読み込みに失敗しちゃった...ファイル名やフォルダが合ってるか確認してみて！`);
                     }
@@ -492,9 +571,12 @@
 
             // --- UI Components ---
             const Sidebar = () => {
-                const [isTodoExpanded, setIsTodoExpanded] = useState(true);
-                const [isMemoExpanded, setIsMemoExpanded] = useState(true);
+                const [isTodoExpanded, setIsTodoExpanded] = useState(safeParse('taskMaster_ui_todo', true));
+                const [isMemoExpanded, setIsMemoExpanded] = useState(safeParse('taskMaster_ui_memo', true));
                 
+                useEffect(() => { localStorage.setItem('taskMaster_ui_todo', JSON.stringify(isTodoExpanded)); }, [isTodoExpanded]);
+                useEffect(() => { localStorage.setItem('taskMaster_ui_memo', JSON.stringify(isMemoExpanded)); }, [isMemoExpanded]);
+
                 const activeMemo = memos.find(m => m.id === currentMemoId) || memos[0] || { content: '' };
                 const handleMemoUpdate = (id, field, value) => setMemos(memos.map(m => m.id === id ? {...m, [field]: value} : m));
 
@@ -568,7 +650,8 @@
             };
 
             const TaskList = ({ type, title, icon }) => {
-                const [isExpanded, setIsExpanded] = useState(type !== 'completed');
+                const [isExpanded, setIsExpanded] = useState(safeParse('taskMaster_ui_list_'+type, type !== 'completed'));
+                useEffect(() => { localStorage.setItem('taskMaster_ui_list_'+type, JSON.stringify(isExpanded)); }, [isExpanded]);
                 const [sortMode, setSortMode] = useState('manual'); 
                 
                 let list = tasks.filter(t => t.type === type && t.status === 'active');
@@ -679,6 +762,10 @@
             const Dashboard = () => {
                 const tags = Array.from(new Set(tasks.flatMap(t => t.tags || [])));
                 const [backupName, setBackupName] = useState(backupHistory[0] || 'backup.json');
+                
+                // カレンダー用の状態
+                const [currentMonth, setCurrentMonth] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+                const [isEditingCalBtns, setIsEditingCalBtns] = useState(false);
 
                 const handleBackup = () => {
                     const finalName = backupName.trim() || 'backup.json';
@@ -688,7 +775,7 @@
                         localStorage.setItem('taskMaster_backupHistory', JSON.stringify(newHistory));
                     }
 
-                    const dataObj = { tasks, schedules, activityLog, userStats, memos, todos, githubSettings };
+                    const dataObj = { tasks, schedules, activityLog, userStats, memos, todos, githubSettings, calendarButtons, calendarStamps };
                     if (githubSettings.token && githubSettings.owner && githubSettings.repo) {
                         uploadTextToGithub(finalName, JSON.stringify(dataObj, null, 2));
                     } else {
@@ -696,8 +783,63 @@
                     }
                 };
 
+                // --- カレンダー描画ロジック ---
+                const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
+                const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
+                
+                const renderCalendarGrid = () => {
+                    const year = currentMonth.getFullYear();
+                    const month = currentMonth.getMonth();
+                    const daysInMonth = getDaysInMonth(year, month);
+                    const firstDay = getFirstDayOfMonth(year, month);
+                    const todayStr = new Date().toISOString().split('T')[0];
+
+                    let days = [];
+                    for (let i = 0; i < firstDay; i++) days.push(<div key={`empty-${i}`} className="p-1"></div>);
+
+                    for (let day = 1; day <= daysInMonth; day++) {
+                        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                        const isToday = dateStr === todayStr;
+                        const daySchedules = schedules.filter(s => s.date === dateStr);
+                        const dayStamps = calendarStamps[dateStr] || [];
+
+                        days.push(
+                            <div key={day} onClick={() => {
+                                if (!selectedCalBtn) return;
+                                setCalendarStamps(prev => {
+                                    const current = prev[dateStr] || [];
+                                    if (current.includes(selectedCalBtn)) return { ...prev, [dateStr]: current.filter(s => s !== selectedCalBtn) };
+                                    return { ...prev, [dateStr]: [...current, selectedCalBtn] };
+                                });
+                            }} className={`min-h-[60px] p-1 border border-slate-200/50 dark:border-slate-700/50 rounded-xl flex flex-col items-start justify-start relative transition-all ${selectedCalBtn ? 'cursor-pointer hover:bg-primary/10' : ''} ${isToday ? 'bg-primary/5 border-primary/30' : 'bg-white/40 dark:bg-slate-800/40'}`}>
+                                <span className={`text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full mb-1 ${isToday ? 'bg-primary text-white' : 'text-slate-500'}`}>{day}</span>
+                                
+                                <div className="flex flex-wrap gap-0.5 w-full">
+                                    {dayStamps.map((stamp, idx) => (
+                                        <span key={idx} className="text-[9px] bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300 px-1 py-0.5 rounded shadow-sm break-all leading-tight">{stamp}</span>
+                                    ))}
+                                </div>
+                                <div className="w-full mt-auto space-y-0.5">
+                                    {daySchedules.map(sc => (
+                                        <div key={sc.id} className="text-[9px] truncate bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 px-1 py-0.5 rounded" title={sc.title}>{sc.time && `${sc.time} `}{sc.title}</div>
+                                    ))}
+                                </div>
+                            </div>
+                        );
+                    }
+                    return days;
+                };
+
                 return (
                     <div className="flex-1 min-w-0">
+                        {/* 自動同期メッセージ */}
+                        {syncMessage && (
+                            <div className="mb-4 bg-gradient-to-r from-blue-100 to-primary/20 dark:from-blue-900/40 border-l-4 border-primary p-3 rounded-xl text-primary-dark dark:text-blue-200 font-bold shadow-sm animate-pulse flex items-center justify-between">
+                                <div className="flex items-center"><i className="fa-solid fa-cloud-arrow-down mr-3 text-lg"></i>{syncMessage}</div>
+                                <button onClick={() => setSyncMessage('')}><i className="fa-solid fa-xmark opacity-50 hover:opacity-100"></i></button>
+                            </div>
+                        )}
+
                         <div className="flex justify-between items-center mb-8 flex-wrap gap-4">
                             <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-800 dark:text-slate-100 drop-shadow-sm">ダッシュボード</h1>
                             <div className="flex items-center gap-2 p-1.5 glass-panel rounded-2xl">
@@ -737,37 +879,99 @@
                                 <TaskList type="routine" title="日課・ルーチン" icon="fa-solid fa-droplet text-blue-400" />
                                 <div className="mt-10 opacity-70"><TaskList type="completed" title="完了履歴" icon="fa-solid fa-clock-rotate-left text-slate-400" /></div>
                             </div>
-                            <div>
+                            
+                            {/* 右カラム: スケジュール & カレンダー */}
+                            <div className="flex flex-col gap-6">
+                                {/* スケジュール */}
                                 <div className="glass-panel rounded-3xl p-5 sticky top-6">
-                                    <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-200/50 dark:border-slate-700/50">
-                                        <h2 className="text-base font-bold flex items-center text-slate-700 dark:text-slate-200"><i className="fa-regular fa-calendar text-blue-500 mr-2"></i>スケジュール</h2>
-                                        <button onClick={() => {
+                                    <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-200/50 dark:border-slate-700/50 cursor-pointer select-none group" onClick={(e) => { if(e.target.tagName !== 'BUTTON' && e.target.tagName !== 'I') setIsScheduleExpanded(!isScheduleExpanded); }}>
+                                        <h2 className="text-base font-bold flex items-center text-slate-700 dark:text-slate-200">
+                                            <i className="fa-regular fa-calendar text-blue-500 mr-2"></i>スケジュール
+                                            <i className={`fa-solid fa-chevron-${isScheduleExpanded ? 'down' : 'right'} ml-2 text-xs text-slate-300 group-hover:text-slate-500 transition-transform`}></i>
+                                        </h2>
+                                        <button onClick={(e) => {
+                                            e.stopPropagation();
                                             const sorted = [...schedules].sort((a, b) => {
                                                 const ta = new Date(`${a.date || '9999-12-31'}T${a.time || '23:59'}`).getTime();
                                                 const tb = new Date(`${b.date || '9999-12-31'}T${b.time || '23:59'}`).getTime();
                                                 return ta - tb;
                                             });
                                             setSchedules(sorted);
+                                            setIsScheduleExpanded(true);
                                         }} className="text-xs text-blue-600 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 px-3 py-1.5 rounded-full font-bold transition-colors border border-blue-100 dark:border-blue-800" title="日時順に並び替え">
                                             <i className="fa-solid fa-arrow-down-short-wide"></i> 日時順
                                         </button>
                                     </div>
-                                    <div className="space-y-3 max-h-[350px] overflow-y-auto pr-2">
-                                        {schedules.map(sc => {
-                                            const styles = getDueDateStyles(sc.date, false);
-                                            return (
-                                            <div key={sc.id} className={`flex items-center gap-2 p-2 bg-white/40 dark:bg-slate-900/40 rounded-xl border border-white/50 dark:border-slate-700/50 hover:bg-white/60 transition-colors ${styles.borderClass}`}>
-                                                <div className="flex flex-col gap-1 w-28 flex-shrink-0">
-                                                    <SafeDateInput type="date" className={`input-glass input-glass-noborder px-1.5 py-0.5 text-xs w-full ${styles.textClass}`} value={sc.date} onChange={val => setSchedules(schedules.map(s => s.id === sc.id ? {...s, date: val} : s))}/>
-                                                    <SafeDateInput type="time" className={`input-glass input-glass-noborder px-1.5 py-0.5 text-xs w-full ${styles.textClass}`} value={sc.time || ''} onChange={val => setSchedules(schedules.map(s => s.id === sc.id ? {...s, time: val} : s))}/>
-                                                </div>
-                                                <LocalInput value={sc.title} onChange={(val) => setSchedules(schedules.map(s => s.id === sc.id ? {...s, title: val} : s))} className="w-full input-glass input-glass-noborder px-2 py-1 text-sm font-semibold" placeholder="予定内容..."/>
-                                                <button onClick={() => setSchedules(schedules.filter(s => s.id !== sc.id))} className="text-rose-400 ml-auto hover:text-rose-600 w-6 h-6 rounded-full flex items-center justify-center transition-colors flex-shrink-0"><i className="fa-solid fa-xmark"></i></button>
+
+                                    {isScheduleExpanded && (
+                                        <>
+                                            <div className="space-y-3 max-h-[350px] overflow-y-auto pr-2">
+                                                {/* ★修正: スケジュールの縦並び化（見切れ防止） */}
+                                                {schedules.map(sc => {
+                                                    const styles = getDueDateStyles(sc.date, false);
+                                                    return (
+                                                    <div key={sc.id} className={`flex flex-col gap-1.5 p-3 bg-white/40 dark:bg-slate-900/40 rounded-xl border border-white/50 dark:border-slate-700/50 hover:bg-white/60 transition-colors ${styles.borderClass}`}>
+                                                        <div className="flex justify-between items-center w-full">
+                                                            <div className="flex gap-2">
+                                                                <SafeDateInput type="date" className={`input-glass input-glass-noborder px-2 py-0.5 text-xs w-28 ${styles.textClass}`} value={sc.date} onChange={val => setSchedules(schedules.map(s => s.id === sc.id ? {...s, date: val} : s))}/>
+                                                                <SafeDateInput type="time" className={`input-glass input-glass-noborder px-2 py-0.5 text-xs w-24 ${styles.textClass}`} value={sc.time || ''} onChange={val => setSchedules(schedules.map(s => s.id === sc.id ? {...s, time: val} : s))}/>
+                                                            </div>
+                                                            <button onClick={() => setSchedules(schedules.filter(s => s.id !== sc.id))} className="text-rose-400 hover:text-rose-600 w-6 h-6 rounded-full flex items-center justify-center transition-colors flex-shrink-0"><i className="fa-solid fa-xmark"></i></button>
+                                                        </div>
+                                                        <LocalInput value={sc.title} onChange={(val) => setSchedules(schedules.map(s => s.id === sc.id ? {...s, title: val} : s))} className="w-full input-glass input-glass-noborder px-2 py-1.5 text-sm font-semibold" placeholder="予定内容..."/>
+                                                    </div>
+                                                )})}
+                                                {schedules.length === 0 && <p className="text-center text-xs text-slate-400 py-4">予定を追加してね🕊️</p>}
                                             </div>
-                                        )})}
-                                        {schedules.length === 0 && <p className="text-center text-xs text-slate-400 py-4">予定を追加してね🕊️</p>}
+                                            <button onClick={() => setSchedules([...schedules, {id: Date.now().toString() + Math.random(), title: '', date: '', time: ''}])} className="mt-4 text-sm bg-blue-500 hover:bg-blue-600 text-white shadow-md px-4 py-2 rounded-xl w-full font-bold transition-all hover:shadow-lg hover:-translate-y-0.5"><i className="fa-solid fa-plus mr-1"></i>予定を追加</button>
+                                        </>
+                                    )}
+                                </div>
+
+                                {/* ★新機能: 連動カレンダー */}
+                                <div className="glass-panel rounded-3xl p-4">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"><i className="fa-solid fa-chevron-left text-slate-500"></i></button>
+                                        <h3 className="font-bold text-slate-700 dark:text-slate-200">{currentMonth.getFullYear()}年 {currentMonth.getMonth() + 1}月</h3>
+                                        <button onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"><i className="fa-solid fa-chevron-right text-slate-500"></i></button>
                                     </div>
-                                    <button onClick={() => setSchedules([...schedules, {id: Date.now().toString() + Math.random(), title: '', date: '', time: ''}])} className="mt-4 text-sm bg-blue-500 hover:bg-blue-600 text-white shadow-md px-4 py-2 rounded-xl w-full font-bold transition-all hover:shadow-lg hover:-translate-y-0.5"><i className="fa-solid fa-plus mr-1"></i>予定を追加</button>
+                                    
+                                    {/* スタンプボタン設定 */}
+                                    <div className="mb-3 p-2 bg-white/50 dark:bg-slate-900/50 rounded-xl border border-white/60 dark:border-slate-700">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <span className="text-[10px] font-bold text-slate-500"><i className="fa-solid fa-stamp mr-1"></i>スタンプを選択して日付をタップ！</span>
+                                            <button onClick={() => setIsEditingCalBtns(!isEditingCalBtns)} className="text-[10px] text-primary hover:underline">{isEditingCalBtns ? '完了' : '編集'}</button>
+                                        </div>
+                                        
+                                        {isEditingCalBtns ? (
+                                            <div className="flex flex-wrap gap-1">
+                                                {calendarButtons.map((btn, i) => (
+                                                    <div key={i} className="flex items-center bg-white dark:bg-slate-800 rounded p-1 border shadow-sm">
+                                                        <input value={btn} onChange={(e) => { const newB = [...calendarButtons]; newB[i] = e.target.value; setCalendarButtons(newB); }} className="w-16 text-xs px-1 bg-transparent outline-none"/>
+                                                        <button onClick={() => setCalendarButtons(calendarButtons.filter((_, idx) => idx !== i))} className="text-rose-500 px-1"><i className="fa-solid fa-xmark"></i></button>
+                                                    </div>
+                                                ))}
+                                                <button onClick={() => setCalendarButtons([...calendarButtons, '新'])} className="px-2 py-1 bg-primary/10 text-primary text-xs rounded hover:bg-primary/20"><i className="fa-solid fa-plus"></i></button>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {calendarButtons.map((btn, i) => (
+                                                    <button key={i} onClick={() => setSelectedCalBtn(selectedCalBtn === btn ? null : btn)} 
+                                                        className={`text-xs px-2.5 py-1 rounded-lg font-bold transition-all shadow-sm ${selectedCalBtn === btn ? 'bg-amber-500 text-white scale-110 shadow-md ring-2 ring-amber-300' : 'bg-white text-slate-600 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700'}`}>
+                                                        {btn}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* カレンダーグリッド */}
+                                    <div className="grid grid-cols-7 gap-1 text-center mb-1">
+                                        {['日','月','火','水','木','金','土'].map(d => <div key={d} className="text-[10px] font-bold text-slate-400">{d}</div>)}
+                                    </div>
+                                    <div className="grid grid-cols-7 gap-1">
+                                        {renderCalendarGrid()}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1101,21 +1305,23 @@
             const SettingsView = () => {
                 const qrRef = useRef(null);
                 
-                // ★ QRコード生成処理を改善 (データ量を減らし、確実にする)
+                // ★ QRコード生成処理を改善 (設定情報の引継ぎURLを生成)
                 useEffect(() => {
                     if (qrRef.current && typeof QRCode !== 'undefined') {
                         qrRef.current.innerHTML = '';
                         try {
-                            // URLが長すぎるとQRコードが生成できないので、最低限のデータに絞る
-                            const exportData = { 
-                                lv: userStats.level, 
-                                xp: userStats.xp, 
-                                t: tasks.filter(t=>t.status==='active').slice(0,3).map(t=>t.title) 
+                            // GitHubとAPIキーの設定のみをエクスポート
+                            const settingsData = { 
+                                github: githubSettings,
+                                keys: apiKeys
                             };
-                            const jsonStr = JSON.stringify(exportData);
-                            // URIエンコードをして安全な文字列にする
-                            const encodedStr = encodeURIComponent(jsonStr);
-                            const finalUrl = `taskmaster://sync?d=${encodedStr}`.substring(0, 200); // さらに安全のため短くカット
+                            const jsonStr = JSON.stringify(settingsData);
+                            // URIエンコード -> Base64エンコード
+                            const encodedStr = btoa(unescape(encodeURIComponent(jsonStr)));
+                            
+                            // 現在のURL（パラメータを除く）に ?sync= を付けてQRコードにする
+                            const baseUrl = window.location.href.split('?')[0];
+                            const finalUrl = `${baseUrl}?sync=${encodedStr}`;
 
                             new QRCode(qrRef.current, { 
                                 text: finalUrl, 
@@ -1123,14 +1329,14 @@
                                 height: 140, 
                                 colorDark : "#1e293b", 
                                 colorLight : "#ffffff",
-                                correctLevel : QRCode.CorrectLevel.L // エラー訂正レベルを下げてデータ量を稼ぐ
+                                correctLevel : QRCode.CorrectLevel.M 
                             });
                         } catch (e) {
                             console.error("QR Code generation failed:", e);
                             qrRef.current.innerHTML = '<span class="text-xs text-rose-500">QRの生成に失敗しました😢</span>';
                         }
                     }
-                }, [currentView, userStats, tasks]); // 表示された時とデータが変わった時に更新
+                }, [currentView, githubSettings, apiKeys]);
 
                 return (
                     <div className="flex-1 glass-panel rounded-[2rem] p-6 md:p-10 space-y-8">
@@ -1142,7 +1348,6 @@
                             <input type="file" accept=".json" onChange={importJSONData} className="text-sm file:mr-4 file:py-2.5 file:px-5 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-amber-100 file:text-amber-700 hover:file:bg-amber-200 cursor-pointer transition-colors"/>
                         </div>
 
-                        {/* ★ 新機能: AI連携 (Gemini API) の設定項目 */}
                         <div className="p-6 rounded-3xl bg-emerald-50/80 dark:bg-emerald-900/20 border border-emerald-200/50 dark:border-emerald-800/50 shadow-sm">
                             <h3 className="font-bold mb-2 flex items-center text-emerald-700 dark:text-emerald-500 text-lg"><i className="fa-solid fa-wand-magic-sparkles mr-2"></i>AI連携 (Gemini)</h3>
                             <p className="text-sm text-emerald-600/80 dark:text-emerald-400/80 mb-4 font-medium">APIキーを設定すると、タスクの「AI細分化」などが使えるようになるよ！✨</p>
@@ -1188,11 +1393,14 @@
                             <button onClick={() => { const nd = !isDarkMode; setIsDarkMode(nd); document.documentElement.classList.toggle('dark', nd); }} className="p-6 rounded-3xl bg-white/60 dark:bg-slate-800/60 border border-white/60 dark:border-slate-700 text-center hover:bg-white dark:hover:bg-slate-700 shadow-sm hover:shadow-md transition-all group">
                                 <i className={`fa-solid ${isDarkMode ? 'fa-sun text-yellow-400' : 'fa-moon text-indigo-500'} text-3xl mb-3 group-hover:rotate-12 transition-transform`}></i><br/><span className="text-sm font-bold">昼夜切替</span>
                             </button>
-                            <button onClick={() => exportAllData(backupHistory[0] || 'backup.json', { tasks, schedules, activityLog, userStats, memos, todos, githubSettings, apiKeys })} className="p-6 rounded-3xl bg-white/60 dark:bg-slate-800/60 border border-white/60 dark:border-slate-700 text-center hover:bg-white dark:hover:bg-slate-700 shadow-sm hover:shadow-md transition-all group">
+                            <button onClick={() => exportAllData(backupHistory[0] || 'backup.json', { tasks, schedules, activityLog, userStats, memos, todos, githubSettings, apiKeys, calendarButtons, calendarStamps })} className="p-6 rounded-3xl bg-white/60 dark:bg-slate-800/60 border border-white/60 dark:border-slate-700 text-center hover:bg-white dark:hover:bg-slate-700 shadow-sm hover:shadow-md transition-all group">
                                 <i className="fa-solid fa-download text-emerald-500 text-3xl mb-3 group-hover:-translate-y-1 transition-transform"></i><br/><span className="text-sm font-bold">端末へ保存</span>
                             </button>
-                            <div className="col-span-2 p-6 rounded-3xl bg-white/60 dark:bg-slate-800/60 border border-white/60 dark:border-slate-700 flex flex-col items-center justify-center shadow-sm">
-                                <p className="text-sm font-bold mb-3 text-slate-600 dark:text-slate-300">スマホ引継ぎ用QRコード📱</p>
+                            
+                            {/* ★ スマホ設定引継ぎQRコード */}
+                            <div className="col-span-2 p-6 rounded-3xl bg-white/60 dark:bg-slate-800/60 border border-white/60 dark:border-slate-700 flex flex-col items-center justify-center shadow-sm text-center">
+                                <p className="text-sm font-bold mb-1 text-slate-600 dark:text-slate-300">📱 スマホ設定引継ぎQRコード</p>
+                                <p className="text-[10px] text-slate-500 mb-3">※GitHubとAPIキーの「設定のみ」を引き継ぎます</p>
                                 <div ref={qrRef} className="p-3 bg-white rounded-2xl shadow-md min-h-[160px] flex items-center justify-center"></div>
                             </div>
                         </div>
