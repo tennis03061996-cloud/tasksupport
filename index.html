@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Task Master Pro V16</title>
 
@@ -78,13 +78,15 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Babelのバージョンを固定して安定化 -->
+    <script src="https://unpkg.com/@babel/standalone@7.24.4/babel.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 </head>
 <body class="bg-gradient-to-br from-blue-50 via-teal-50 to-emerald-50 dark:from-slate-900 dark:via-cyan-950 dark:to-teal-950 text-slate-800 dark:text-slate-100 antialiased min-h-screen">
     <div id="root"></div>
 
-    <script type="text/babel">
+    <!-- モジュールとして読み込むよう data-type="module" を追加 -->
+    <script type="text/babel" data-type="module">
         const { useState, useEffect, useRef } = React;
 
         let audioCtx, bgmNode;
@@ -299,7 +301,7 @@
                 }));
             };
 
-            const applyImportedData = (j, silent = false) => {
+            const applyLoadedData = (j, silent = false) => {
                 if (j.memos) { setMemos(j.memos); if(j.memos.length>0) setCurrentMemoId(j.memos[0].id); }
                 if (j.todos) setTodos(j.todos); if (j.tasks) setTasks(j.tasks); if (j.schedules) setSchedules(j.schedules);
                 if (j.userStats) setUserStats(j.userStats); if (j.activityLog) setActivityLog(j.activityLog);
@@ -374,7 +376,7 @@
                 if (!githubSettings.token) { alert("GitHub連携が未設定だよ。設定画面から設定してね！"); return; } setIsGithubLoading(true);
                 try {
                     const res = await fetch(`https://api.github.com/repos/${githubSettings.owner}/${githubSettings.repo}/contents/${targetPath}`, { headers: { 'Authorization': `token ${githubSettings.token}` } });
-                    if(res.ok) { const data = await res.json(); const decoded = decodeURIComponent(escape(atob(data.content))); applyImportedData(JSON.parse(decoded)); setLastGithubSyncPath(targetPath); } else { alert(`${targetPath} の読み込みに失敗しちゃった...ファイル名やフォルダが合ってるか確認してみて！`); }
+                    if(res.ok) { const data = await res.json(); const decoded = decodeURIComponent(escape(atob(data.content))); applyLoadedData(JSON.parse(decoded)); setLastGithubSyncPath(targetPath); } else { alert(`${targetPath} の読み込みに失敗しちゃった...ファイル名やフォルダが合ってるか確認してみて！`); }
                 } catch(e) { console.error(e); alert("読み込みエラーが発生したよ。ネットワークを確認してね🌿"); } setIsGithubLoading(false);
             };
 
@@ -398,9 +400,9 @@
                 if(res.ok) fetchGithubPath(githubPath); setIsGithubLoading(false);
             };
 
-            const importJSONData = (e) => {
+            const loadJSONData = (e) => {
                 const file = e.target.files[0]; if (!file) return; const reader = new FileReader();
-                reader.onload = (evt) => { try { applyImportedData(JSON.parse(evt.target.result)); } catch(err) { alert("JSONファイルの形式が正しくないみたい。"); } };
+                reader.onload = (evt) => { try { applyLoadedData(JSON.parse(evt.target.result)); } catch(err) { alert("JSONファイルの形式が正しくないみたい。"); } };
                 reader.readAsText(file); e.target.value = '';
             };
 
@@ -760,10 +762,10 @@
                                 <button onClick={handleBackup} disabled={isGithubLoading} className="px-4 py-2 bg-gradient-to-r from-primary to-primary-dark text-white rounded-xl text-sm font-bold shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all flex items-center disabled:opacity-50 disabled:cursor-not-allowed" title="クラウドまたは端末に保存">
                                     {isGithubLoading ? <i className="fa-solid fa-spinner fa-spin mr-1"></i> : <i className="fa-brands fa-github mr-1"></i>}保存
                                 </button>
-                                <button onClick={() => { if (githubSettings.token && githubSettings.owner && githubSettings.repo) { loadFromGithub(backupName.trim() || 'backup.json'); } else { document.getElementById('dash-file-import').click(); } }} disabled={isGithubLoading} className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl text-sm font-bold shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all flex items-center disabled:opacity-50 disabled:cursor-not-allowed" title={githubSettings.token ? "クラウドから読込" : "端末から読込(JSON)"}>
+                                <button onClick={() => { if (githubSettings.token && githubSettings.owner && githubSettings.repo) { loadFromGithub(backupName.trim() || 'backup.json'); } else { document.getElementById('dash-file-loader').click(); } }} disabled={isGithubLoading} className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl text-sm font-bold shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all flex items-center disabled:opacity-50 disabled:cursor-not-allowed" title={githubSettings.token ? "クラウドから読込" : "端末から読込(JSON)"}>
                                     {isGithubLoading ? <i className="fa-solid fa-spinner fa-spin mr-1"></i> : <i className="fa-solid fa-cloud-arrow-down mr-1"></i>}読込
                                 </button>
-                                <input type="file" id="dash-file-import" accept=".json" style={{display: 'none'}} onChange={importJSONData} />
+                                <input type="file" id="dash-file-loader" accept=".json" style={{display: 'none'}} onChange={loadJSONData} />
                             </div>
                         </div>
 
@@ -1276,9 +1278,9 @@
                         <h1 className="text-3xl font-extrabold mb-6 text-slate-800 dark:text-slate-100"><i className="fa-solid fa-gear text-slate-500 mr-3"></i>設定・カスタマイズ</h1>
                         
                         <div className="p-6 rounded-3xl bg-amber-50/80 dark:bg-amber-900/20 border border-amber-200/50 dark:border-amber-800/50 shadow-sm">
-                            <h3 className="font-bold mb-2 flex items-center text-amber-700 dark:text-amber-500 text-lg"><i className="fa-solid fa-file-import mr-2"></i>データのインポート (お引越し)</h3>
+                            <h3 className="font-bold mb-2 flex items-center text-amber-700 dark:text-amber-500 text-lg"><i className="fa-solid fa-file-arrow-up mr-2"></i>データの復元 (お引越し)</h3>
                             <p className="text-sm text-amber-600/80 dark:text-amber-400/80 mb-4 font-medium">以前のバックアップファイル (JSON) を読み込んで、世界を復元します🌿</p>
-                            <input type="file" accept=".json" onChange={importJSONData} className="text-sm file:mr-4 file:py-2.5 file:px-5 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-amber-100 file:text-amber-700 hover:file:bg-amber-200 cursor-pointer transition-colors"/>
+                            <input type="file" accept=".json" onChange={loadJSONData} className="text-sm file:mr-4 file:py-2.5 file:px-5 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-amber-100 file:text-amber-700 hover:file:bg-amber-200 cursor-pointer transition-colors"/>
                         </div>
 
                         <div className="p-6 rounded-3xl bg-emerald-50/80 dark:bg-emerald-900/20 border border-emerald-200/50 dark:border-emerald-800/50 shadow-sm">
